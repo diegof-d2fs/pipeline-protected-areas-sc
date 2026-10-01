@@ -7,13 +7,12 @@ CREATE EXTENSION IF NOT EXISTS postgis_raster;
 -- =========================================================
 -- CONFIGURAÇÃO GDAL DO POSTGIS RASTER
 -- =========================================================
--- Habilita o driver GTiff no nível do banco para a carga in-db do COG
--- MapBiomas (ST_FromGDALRaster) e para exportação controlada de recortes
--- (ST_AsGDALRaster). O acesso out-db permanece desabilitado: os tiles são
--- materializados dentro do banco em mapbiomas_raster_<ano>, sem depender de
--- caminhos de arquivo visíveis ao servidor. Aplica-se a novas conexões.
-ALTER DATABASE :"DBNAME" SET postgis.gdal_enabled_drivers = 'GTiff';
-ALTER DATABASE :"DBNAME" SET postgis.enable_outdb_rasters = 'False';
+-- A carga in-db do COG MapBiomas (ST_FromGDALRaster) e a exportação de recortes
+-- (ST_AsGDALRaster) exigem o driver GTiff habilitado. Essa configuração é do servidor,
+-- não do banco: postgis.gdal_enabled_drivers só pode ser alterado por superusuário.
+-- No RDS vale o parâmetro do parameter group (ENABLE_ALL); no Docker local, a variável
+-- POSTGIS_GDAL_ENABLED_DRIVERS do container. Raster out-db permanece desabilitado
+-- (padrão do PostGIS 3): os tiles ficam dentro do banco em mapbiomas_raster_<ano>.
 
 -- =========================================================
 -- TABELA PRINCIPAL: UC

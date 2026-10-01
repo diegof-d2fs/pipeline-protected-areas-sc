@@ -50,7 +50,7 @@ a cada execução; variável vazia mantém o login bloqueado. O GeoServer recebe
 ## 2. GeoServer
 
 - Serviço `protected-areas-sc-geoserver` em `airflow/docker-compose.yaml`, imagem
-  `docker.osgeo.org/geoserver:2.25.2`, porta `${GEOSERVER_PORT:-8600}`, administrador por
+  `docker.osgeo.org/geoserver:2.28.5` (Java 21), porta `${GEOSERVER_PORT:-8600}`, administrador por
   `GEOSERVER_ADMIN_PASSWORD`. Configuração em volume nomeado, recriável a qualquer momento pelo
   publicador.
 - Workspace `protected_areas_sc`; store PostGIS `reporting` com `geoserver_svc`.
@@ -62,11 +62,12 @@ a cada execução; variável vazia mantém o login bloqueado. O GeoServer recebe
   (`airflow/data/gold/mapbiomas_lulc`, montado somente leitura). Os anos vêm de
   `reporting.mapbiomas_raster_asset` e cada arquivo tem o SHA-256 conferido antes de publicar.
 - WFS em nível `BASIC`: sem `Transaction`/`LockFeature`.
-- Cada ano raster é configurado pela autoconfiguração do GeoServer
-  (`external.geotiff?configure=first`), o único caminho que preenche bandas, formato nativo e
-  SRS de requisição/resposta exigidos pelo WCS; a cobertura só é recriada quando falta algum
-  desses metadados ou quando o arquivo publicado muda de caminho.
-- Rede: porta publicada só na rede local/VPN do laboratório; sem TLS nesta fase.
+- Cada ano raster é criado como store GeoTIFF e cobertura via REST JSON; o `POST` da cobertura
+  dispara a autoconfiguração do GeoServer, que preenche bandas, formato nativo, grade e SRS de
+  requisição/resposta exigidos pelo WCS. A cobertura só é recriada quando falta algum desses
+  metadados ou quando o arquivo publicado muda de caminho.
+- Exposição: localmente na porta 8600; em produção, os serviços OGC ficam abertos na internet, sem
+  senha e sem restrição de rede, por HTTPS no domínio do projeto.
 
 Por que o raster vem do COG e não das tabelas `mapbiomas_raster_<ano>`: a imagem oficial não traz
 suporte a PostGIS Raster (só módulo comunitário); views sobre raster entram em `raster_columns`
@@ -150,4 +151,3 @@ Acesso do laboratório:
 
 - Uma camada raster com dimensão `TIME` quando a série tiver muitos anos carregados.
 - Pirâmide/overviews se a navegação em escala pequena ficar lenta com mais usuários.
-- TLS/VPN se a política da rede do laboratório exigir.

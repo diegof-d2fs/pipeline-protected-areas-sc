@@ -1,0 +1,7 @@
+# Finais de linha LF em todo o repositório: os artefatos rodam em containers e máquinas Linux.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.tif binary
+*.qml text eol=lf

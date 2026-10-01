@@ -888,7 +888,6 @@ class MapbiomasPipelineService:
             expected_tiles = self._tile_count(width, height, tile)
             with psycopg2.connect(self.config.project_db_url) as conn:
                 with conn.cursor() as cur:
-                    cur.execute("SET postgis.gdal_enabled_drivers = 'GTiff';")
                     cur.execute("SET search_path TO public;")
                     cur.execute(
                         "SELECT id_raster_asset FROM mapbiomas_raster_asset WHERE checksum_sha256 = %s;",

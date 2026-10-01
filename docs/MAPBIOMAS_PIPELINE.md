@@ -534,7 +534,7 @@ id_raster_asset
 
 ### 13.3 Opções para disponibilizar o raster pelo PostGIS
 
-O container atual possui PostGIS 3.3.4 e oferece `postgis_raster`, mas a extensão Raster não está habilitada no banco e o executável `raster2pgsql` não está presente na imagem. Existem quatro opções:
+O PostGIS oferece `postgis_raster`; o executável `raster2pgsql` não faz parte da imagem do banco nem do RDS. Existem quatro opções:
 
 | Opção | Funcionamento | Avaliação |
 |---|---|---|
@@ -879,8 +879,8 @@ Cobre as duas persistências MapBiomas que as Frentes 3 e 4A deixaram pendentes,
 
 **Fases A–C — fundação reproduzível (concluídas em 30/08/2026).**
 
-- **A.** Imagem `protected-areas-sc-postgis:15-3.3-raster` (`airflow/Dockerfile.postgis`) derivada de `postgis/postgis:15-3.3` + `gdal-bin`, validada no build. `postgresql-15-postgis-3-scripts` removido: não fornece `raster2pgsql` nessa base e a carga in-db não depende dele. Imagem Airflow `protected-areas-sc-airflow:2.8.4-geo` já em uso, sem `_PIP_ADDITIONAL_REQUIREMENTS`.
-- **B.** `init_db.sql` define, após as extensões, `ALTER DATABASE :"DBNAME" SET postgis.gdal_enabled_drivers = 'GTiff'` e `postgis.enable_outdb_rasters = 'False'`; aplicado ao banco de desenvolvimento sem reset. Smoke in-db aprovado: `ST_AsGDALRaster('GTiff')`/`ST_FromGDALRaster` round-trip preserva valores, SRID e dimensões; `ST_Tile` e `AddRasterConstraints` → `raster_columns` funcionam. `AddRasterConstraints` não aceita `pg_temp` — usar `public`.
+- **A.** Bancos locais na imagem oficial `postgis/postgis:17-3.5`, sem customização — mesma versão de PostgreSQL/PostGIS do RDS de produção. A biblioteca GDAL usada por `ST_FromGDALRaster` já vem com o PostGIS; nenhuma ferramenta GDAL de linha de comando é necessária no servidor de banco. Imagem Airflow `protected-areas-sc-airflow:2.8.4-geo`, sem `_PIP_ADDITIONAL_REQUIREMENTS`.
+- **B.** O driver GTiff exigido por `ST_FromGDALRaster`/`ST_AsGDALRaster` é configuração de servidor (`postgis.gdal_enabled_drivers` só pode ser alterado por superusuário): variável `POSTGIS_GDAL_ENABLED_DRIVERS=GTiff` nos containers locais e parâmetro `ENABLE_ALL` (padrão) no RDS. Raster out-db segue desabilitado (padrão do PostGIS 3). Round-trip `ST_AsGDALRaster('GTiff')`/`ST_FromGDALRaster` preserva valores, SRID e dimensões; `ST_Tile` e `AddRasterConstraints` → `raster_columns` funcionam. `AddRasterConstraints` não aceita `pg_temp` — usar `public`.
 - **C.** `protected-areas-sc-db-main` recriado na imagem versionada com o volume nomeado preservado; `init_db.sql` não reexecutou. Integridade conferida (`uc=11`, `za=5`, `buffer=6`, `md5` de nomes idêntico), GUC persistido, Airflow sem erro de import.
 
 **Fase D — carga pós-Gold, idempotente e validada no banco (concluída em 30/08/2026).**

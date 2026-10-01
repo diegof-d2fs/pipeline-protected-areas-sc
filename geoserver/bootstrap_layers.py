@@ -343,14 +343,26 @@ def publish_raster_layers(geoserver: GeoServer, gold_root: Path) -> list[str]:
         if coverage_is_complete(geoserver, store_path, coverage_path, url):
             store_action = "mantido"
         else:
-            # A autoconfiguração do GeoServer (configure=first) é o único caminho que preenche
-            # bandas, grade, formato nativo e SRS de requisição/resposta exigidos pelo WCS.
+            # Store e cobertura são recriados juntos: o POST da cobertura dispara a
+            # autoconfiguração que preenche bandas, grade, formato nativo e SRS exigidos pelo WCS.
             geoserver.request("DELETE", f"{store_path}?recurse=true&purge=none", allow=(404,))
             geoserver.request(
-                "PUT",
-                f"{store_path}/external.geotiff?configure=first&coverageName={name}",
-                url,
-                content_type="text/plain",
+                "POST",
+                f"{workspace}/coveragestores.json",
+                {
+                    "coverageStore": {
+                        "name": name,
+                        "type": "GeoTIFF",
+                        "enabled": True,
+                        "workspace": {"name": WORKSPACE},
+                        "url": url,
+                    }
+                },
+            )
+            geoserver.request(
+                "POST",
+                f"{store_path}/coverages.json",
+                {"coverage": {"name": name, "nativeCoverageName": Path(storage_key).stem}},
             )
             store_action = "configurado"
         geoserver.request(

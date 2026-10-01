@@ -127,7 +127,7 @@ O backend foi desenhado para integrar e padronizar principalmente as seguintes f
 Componentes principais:
 
 - orquestracao: Apache Airflow 2.8
-- persistencia espacial: PostgreSQL 15 + PostGIS 3.3
+- persistencia espacial: PostgreSQL 17 + PostGIS 3.5
 - armazenamento em camadas: Medallion local em disco
 - scripts operacionais multiplataforma: PowerShell e Bash
 
