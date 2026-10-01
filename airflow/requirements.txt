@@ -1,0 +1,2 @@
+# Keep this file aligned with repository root requirements.txt
+-r ../requirements.txt

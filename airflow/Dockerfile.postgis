@@ -1,0 +1,9 @@
+FROM postgis/postgis:15-3.3
+
+USER root
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        gdal-bin \
+    && gdalinfo --version \
+    && rm -rf /var/lib/apt/lists/*

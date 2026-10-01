@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.coverage
+coverage.xml
+htmlcov/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Arquivos avulsos de troca/anexo entre sessões — nunca conteúdo de projeto. O `.zip` em
+# particular chegou a conter um `.env` real dentro dele; qualquer arquivo assim deve ficar de
+# fora do histórico do Git.
+passar_pro_chat.zip
+example-com-test.png
+
+# Estado local de ferramentas (não é config compartilhada do projeto)
+.playwright-mcp/
+.claude/settings.local.json
+
+# Airflow runtime artifacts
+airflow/logs/
+airflow/data/tmp/
+airflow/data/raw/
+airflow/data/bronze/**
+airflow/data/silver/**
+airflow/data/gold/**
+airflow/data/quality/
+airflow/data/quarantine/
+!airflow/data/bronze/.gitkeep
+!airflow/data/silver/.gitkeep
+!airflow/data/gold/.gitkeep
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/*.log
+.idea/
+*.log
+dag_test_*.log
+
+# OCR conversion artifacts
+*_assets/
+*.conversion.json
+
+# Configuração local de ferramentas de desenvolvimento
+.claude/
+.mcp.json

@@ -1,0 +1,84 @@
+{
+  "provenance": {
+    "collection_code": "11",
+    "collection_version": "1",
+    "published_date": "2026-08-13",
+    "derived_on": "2026-08-30",
+    "source_documents": [
+      {
+        "name": "CodigosDeLegenda_LegendCodes_MapBiomas_Brazil_Collection11_PDF.pdf",
+        "sha256": "19ddb657d66ce1039be8aba31f20689d9ab66af7d39b86d976727dc3265b7865",
+        "role": "hierarchy, aggregated node codes and terminal codes"
+      },
+      {
+        "name": "legend_code_mapbiomas_brazil_collection_11.csv",
+        "role": "authoritative terminal class codes, source names and colours"
+      }
+    ],
+    "hierarchy_corrections": [
+      "Class 48 (Outras Lavouras Perenes) is printed as node 3.2.1.4 in the source PDF; it belongs under 3.2.2 Lavoura Perene (parent 36), corrected here."
+    ],
+    "name_corrections": [
+      {"class_code": 46, "field": "name_en", "source": "Coffe", "display": "Coffee"},
+      {"class_code": 29, "field": "name_en", "source": "Rocky Outrcrop", "display": "Rocky Outcrop"},
+      {"class_code": 84, "field": "name_pt_br", "source": "Marismas (beta)", "display": "Marisma (beta)"},
+      {"class_code": 25, "field": "name_pt_br", "source": "Outras Área não Vegetadas", "display": "Outras Áreas não Vegetadas"}
+    ],
+    "notes": [
+      "Aggregated (non-terminal) node codes come from the source PDF ID column: Floresta=1, Vegetação Herbácea e Arbustiva=10, Agropecuária=14, Área não Vegetada=22, Corpo D'água=26, Agricultura=18, Lavoura Temporária=19, Lavoura Perene=36.",
+      "The 33 terminal classes match the values present in brazil_coverage-col11_2025.tif besides value 0 (NoData).",
+      "Beta indicator is kept here for provenance; it is applied at the Gold/fact-table level via MapbiomasPipelineService.BETA_CLASS_IDS and is not a column of mapbiomas_legend_class in the current baseline."
+    ]
+  },
+  "classes": [
+    {"class_code": 1, "parent_class_code": null, "hierarchy_level": 1, "is_terminal": false, "is_beta": false, "name_pt_br": "Floresta", "name_en": "Forest", "color_hex": "#1f8d49"},
+    {"class_code": 10, "parent_class_code": null, "hierarchy_level": 1, "is_terminal": false, "is_beta": false, "name_pt_br": "Vegetação Herbácea e Arbustiva", "name_en": "Herbaceous or Shrubby Vegetation", "color_hex": "#d6bc74"},
+    {"class_code": 14, "parent_class_code": null, "hierarchy_level": 1, "is_terminal": false, "is_beta": false, "name_pt_br": "Agropecuária", "name_en": "Farming", "color_hex": "#ffefc3"},
+    {"class_code": 22, "parent_class_code": null, "hierarchy_level": 1, "is_terminal": false, "is_beta": false, "name_pt_br": "Área não Vegetada", "name_en": "Non Vegetated Area", "color_hex": "#d4271e"},
+    {"class_code": 26, "parent_class_code": null, "hierarchy_level": 1, "is_terminal": false, "is_beta": false, "name_pt_br": "Corpo D'água", "name_en": "Water", "color_hex": "#2532e4"},
+
+    {"class_code": 18, "parent_class_code": 14, "hierarchy_level": 2, "is_terminal": false, "is_beta": false, "name_pt_br": "Agricultura", "name_en": "Agriculture", "color_hex": "#e974ed"},
+    {"class_code": 19, "parent_class_code": 18, "hierarchy_level": 3, "is_terminal": false, "is_beta": false, "name_pt_br": "Lavoura Temporária", "name_en": "Temporary Crop", "color_hex": "#c27ba0"},
+    {"class_code": 36, "parent_class_code": 18, "hierarchy_level": 3, "is_terminal": false, "is_beta": false, "name_pt_br": "Lavoura Perene", "name_en": "Perennial Crop", "color_hex": "#d082de"},
+
+    {"class_code": 3, "parent_class_code": 1, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Formação Florestal", "name_en": "Forest Formation", "color_hex": "#1f8d49", "source_name_pt_br": "Formação Florestal", "source_name_en": "Forest Formation"},
+    {"class_code": 6, "parent_class_code": 1, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Floresta Alagável", "name_en": "Floodable Forest", "color_hex": "#007785", "source_name_pt_br": "Floresta Alagável", "source_name_en": "Floodable Forest"},
+    {"class_code": 4, "parent_class_code": 1, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Formação Savânica", "name_en": "Savanna Formation", "color_hex": "#7dc975", "source_name_pt_br": "Formação Savânica", "source_name_en": "Savanna Formation"},
+    {"class_code": 7, "parent_class_code": 1, "hierarchy_level": 2, "is_terminal": true, "is_beta": true, "name_pt_br": "Savana Alagada (beta)", "name_en": "Flooded Savanna (beta)", "color_hex": "#228c70", "source_name_pt_br": "Savana Alagada (beta)", "source_name_en": "Flooded Savanna (beta)"},
+    {"class_code": 5, "parent_class_code": 1, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Mangue", "name_en": "Mangrove", "color_hex": "#04381d", "source_name_pt_br": "Mangue", "source_name_en": "Mangrove"},
+    {"class_code": 49, "parent_class_code": 1, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Restinga Arbórea", "name_en": "Wooded Sandbank Vegetation", "color_hex": "#02d659", "source_name_pt_br": "Restinga Arbórea", "source_name_en": "Wooded Sandbank Vegetation"},
+
+    {"class_code": 12, "parent_class_code": 10, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Formação Campestre", "name_en": "Grassland Formation", "color_hex": "#d6bc74", "source_name_pt_br": "Formação Campestre", "source_name_en": "Grassland Formation"},
+    {"class_code": 77, "parent_class_code": 10, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Formação Herbáceo Arbustiva", "name_en": "Herbaceous and Shrub Formation", "color_hex": "#86b074", "source_name_pt_br": "Formação Herbáceo Arbustiva", "source_name_en": "Herbaceous and Shrub Formation"},
+    {"class_code": 11, "parent_class_code": 10, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Campo Alagado e Área Pantanosa", "name_en": "Wetland", "color_hex": "#519799", "source_name_pt_br": "Campo Alagado e Área Pantanosa", "source_name_en": "Wetland"},
+    {"class_code": 84, "parent_class_code": 10, "hierarchy_level": 2, "is_terminal": true, "is_beta": true, "name_pt_br": "Marisma (beta)", "name_en": "Salt Marsh (beta)", "color_hex": "#81dbbf", "source_name_pt_br": "Marismas (beta)", "source_name_en": "Salt Marsh (beta)"},
+    {"class_code": 50, "parent_class_code": 10, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Restinga Herbácea ou Arbustiva", "name_en": "Herbaceous Sandbank Vegetation", "color_hex": "#ffaa5f", "source_name_pt_br": "Restinga Herbácea ou Arbustiva", "source_name_en": "Herbaceous Sandbank Vegetation"},
+    {"class_code": 32, "parent_class_code": 10, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Apicum", "name_en": "Hypersaline Tidal Flat", "color_hex": "#fc8114", "source_name_pt_br": "Apicum", "source_name_en": "Hypersaline Tidal Flat"},
+    {"class_code": 29, "parent_class_code": 10, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Afloramento Rochoso", "name_en": "Rocky Outcrop", "color_hex": "#ad5100", "source_name_pt_br": "Afloramento Rochoso", "source_name_en": "Rocky Outrcrop"},
+
+    {"class_code": 15, "parent_class_code": 14, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Pastagem", "name_en": "Pasture", "color_hex": "#edde8e", "source_name_pt_br": "Pastagem", "source_name_en": "Pasture"},
+    {"class_code": 9, "parent_class_code": 14, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Silvicultura", "name_en": "Forest Plantation", "color_hex": "#7a5900", "source_name_pt_br": "Silvicultura", "source_name_en": "Forest Plantation"},
+    {"class_code": 21, "parent_class_code": 14, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Mosaico de Usos", "name_en": "Mosaic of Uses", "color_hex": "#ffefc3", "source_name_pt_br": "Mosaico de usos", "source_name_en": "Mosaic of Uses"},
+
+    {"class_code": 39, "parent_class_code": 19, "hierarchy_level": 4, "is_terminal": true, "is_beta": false, "name_pt_br": "Soja", "name_en": "Soybean", "color_hex": "#f5b3c8", "source_name_pt_br": "Soja", "source_name_en": "Soybean"},
+    {"class_code": 20, "parent_class_code": 19, "hierarchy_level": 4, "is_terminal": true, "is_beta": false, "name_pt_br": "Cana", "name_en": "Sugar cane", "color_hex": "#db7093", "source_name_pt_br": "Cana", "source_name_en": "Sugar cane"},
+    {"class_code": 40, "parent_class_code": 19, "hierarchy_level": 4, "is_terminal": true, "is_beta": false, "name_pt_br": "Arroz", "name_en": "Rice", "color_hex": "#c71585", "source_name_pt_br": "Arroz", "source_name_en": "Rice"},
+    {"class_code": 62, "parent_class_code": 19, "hierarchy_level": 4, "is_terminal": true, "is_beta": true, "name_pt_br": "Algodão (beta)", "name_en": "Cotton (beta)", "color_hex": "#ff69b4", "source_name_pt_br": "Algodão (beta)", "source_name_en": "Cotton (beta)"},
+    {"class_code": 41, "parent_class_code": 19, "hierarchy_level": 4, "is_terminal": true, "is_beta": false, "name_pt_br": "Outras Lavouras Temporárias", "name_en": "Other Temporary Crops", "color_hex": "#f54ca9", "source_name_pt_br": "Outras Lavouras Temporárias", "source_name_en": "Other Temporary Crops"},
+
+    {"class_code": 46, "parent_class_code": 36, "hierarchy_level": 4, "is_terminal": true, "is_beta": false, "name_pt_br": "Café", "name_en": "Coffee", "color_hex": "#d68fe2", "source_name_pt_br": "Café", "source_name_en": "Coffe"},
+    {"class_code": 47, "parent_class_code": 36, "hierarchy_level": 4, "is_terminal": true, "is_beta": false, "name_pt_br": "Citrus", "name_en": "Citrus", "color_hex": "#9932cc", "source_name_pt_br": "Citrus", "source_name_en": "Citrus"},
+    {"class_code": 35, "parent_class_code": 36, "hierarchy_level": 4, "is_terminal": true, "is_beta": false, "name_pt_br": "Dendê", "name_en": "Palm Oil", "color_hex": "#9065d0", "source_name_pt_br": "Dendê", "source_name_en": "Palm Oil"},
+    {"class_code": 48, "parent_class_code": 36, "hierarchy_level": 4, "is_terminal": true, "is_beta": false, "name_pt_br": "Outras Lavouras Perenes", "name_en": "Other Perennial Crops", "color_hex": "#e6ccff", "source_name_pt_br": "Outras Lavouras Perenes", "source_name_en": "Other Perennial Crops"},
+
+    {"class_code": 23, "parent_class_code": 22, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Praia, Duna e Areal", "name_en": "Beach, Dune and Sand Spot", "color_hex": "#ffa07a", "source_name_pt_br": "Praia, Duna e Areal", "source_name_en": "Beach, Dune and Sand Spot"},
+    {"class_code": 24, "parent_class_code": 22, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Área Urbanizada", "name_en": "Urban Area", "color_hex": "#d4271e", "source_name_pt_br": "Área Urbanizada", "source_name_en": "Urban Area"},
+    {"class_code": 30, "parent_class_code": 22, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Mineração", "name_en": "Mining", "color_hex": "#9c0027", "source_name_pt_br": "Mineração", "source_name_en": "Mining"},
+    {"class_code": 75, "parent_class_code": 22, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Usina Fotovoltaica", "name_en": "Photovoltaic Power Plant", "color_hex": "#757272", "source_name_pt_br": "Usina Fotovoltaica", "source_name_en": "Photovoltaic Power Plant"},
+    {"class_code": 91, "parent_class_code": 22, "hierarchy_level": 2, "is_terminal": true, "is_beta": true, "name_pt_br": "Parque Eólico (beta)", "name_en": "Wind Farm (beta)", "color_hex": "#403d3e", "source_name_pt_br": "Parque eólico (beta)", "source_name_en": "Wind farm (beta)"},
+    {"class_code": 25, "parent_class_code": 22, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Outras Áreas não Vegetadas", "name_en": "Other Non Vegetated Areas", "color_hex": "#db4d4f", "source_name_pt_br": "Outras Área não Vegetadas", "source_name_en": "Other non Vegetated Areas"},
+
+    {"class_code": 33, "parent_class_code": 26, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Rio, Lago e Oceano", "name_en": "River, Lake and Ocean", "color_hex": "#2532e4", "source_name_pt_br": "Rio, Lago e Oceano", "source_name_en": "River, Lake and Ocean"},
+    {"class_code": 31, "parent_class_code": 26, "hierarchy_level": 2, "is_terminal": true, "is_beta": false, "name_pt_br": "Aquicultura", "name_en": "Aquaculture", "color_hex": "#091077", "source_name_pt_br": "Aquicultura", "source_name_en": "Aquaculture"}
+  ]
+}

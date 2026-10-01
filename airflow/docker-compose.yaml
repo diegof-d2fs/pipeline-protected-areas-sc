@@ -1,0 +1,195 @@
+x-airflow-common:
+  &airflow-common
+  image: ${AIRFLOW_IMAGE_NAME:-protected-areas-sc-airflow:2.8.4-geo}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file:
+    - .env
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@protected-areas-sc-airflow-db:5432/${AIRFLOW_DB_NAME:-airflow}
+    AIRFLOW__CORE__FERNET_KEY: ""
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAG_DISCOVERY_SAFE_MODE: "false"
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+    PROJECT_DB_URL: ${PROJECT_DB_URL}
+    MUTATION_DB_URL: ${MUTATION_DB_URL}
+    MEDALLION_BRONZE_PATH: ${MEDALLION_BRONZE_PATH}
+    MEDALLION_SILVER_PATH: ${MEDALLION_SILVER_PATH}
+    MEDALLION_GOLD_PATH: ${MEDALLION_GOLD_PATH}
+    MEDALLION_TMP_PATH: ${MEDALLION_TMP_PATH}
+    FIRMS_MAP_KEY: ${FIRMS_MAP_KEY}
+    FIRMS_API_BASE_URL: ${FIRMS_API_BASE_URL:-https://firms.modaps.eosdis.nasa.gov/api/area/csv}
+    FIRMS_REQUEST_BBOX: ${FIRMS_REQUEST_BBOX:--53.8371493,-29.3550659,-48.3278753,-25.9557228}
+    FIRMS_DAILY_PRODUCTS: ${FIRMS_DAILY_PRODUCTS:-VIIRS_NOAA20_NRT,VIIRS_NOAA21_NRT}
+    FIRMS_BACKFILL_PRODUCTS: ${FIRMS_BACKFILL_PRODUCTS:-VIIRS_SNPP_SP,VIIRS_NOAA20_SP,MODIS_SP}
+    FIRMS_OVERLAP_DAYS: ${FIRMS_OVERLAP_DAYS:-1}
+    FIRMS_BACKFILL_BATCH_SIZE: ${FIRMS_BACKFILL_BATCH_SIZE:-12}
+    FIRMS_CONNECT_TIMEOUT_SECONDS: ${FIRMS_CONNECT_TIMEOUT_SECONDS:-10}
+    FIRMS_READ_TIMEOUT_SECONDS: ${FIRMS_READ_TIMEOUT_SECONDS:-60}
+    FIRMS_MAX_ATTEMPTS: ${FIRMS_MAX_ATTEMPTS:-4}
+    GEOSERVER_URL: http://protected-areas-sc-geoserver:8080/geoserver
+
+  volumes:
+    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+    - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
+    - ${AIRFLOW_PROJ_DIR:-.}/scripts:/opt/airflow/scripts
+    - ${AIRFLOW_PROJ_DIR:-.}/tests:/opt/airflow/tests:ro
+    - ../geoserver:/opt/airflow/geoserver:ro
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    &airflow-common-depends-on
+    protected-areas-sc-airflow-db:
+      condition: service_healthy
+    protected-areas-sc-db-main:
+      condition: service_healthy
+    protected-areas-sc-db-mutation:
+      condition: service_healthy
+
+services:
+  protected-areas-sc-airflow-db:
+    image: postgres:15
+    container_name: protected-areas-sc-airflow-db
+    environment:
+      POSTGRES_USER: ${AIRFLOW_DB_USER:-airflow}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow}
+      POSTGRES_DB: ${AIRFLOW_DB_NAME:-airflow}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${AIRFLOW_DB_USER:-airflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    volumes:
+      - protected-areas-sc-airflow-db-volume:/var/lib/postgresql/data
+
+  protected-areas-sc-db-main:
+    image: protected-areas-sc-postgis:15-3.3-raster
+    build:
+      context: .
+      dockerfile: Dockerfile.postgis
+    container_name: protected-areas-sc-db-main
+    environment:
+      POSTGRES_USER: ${PROJECT_DB_USER:-project}
+      POSTGRES_PASSWORD: ${PROJECT_DB_PASSWORD:-project}
+      POSTGRES_DB: ${PROJECT_DB_NAME:-protected-areas-sc-db-main}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${PROJECT_DB_USER:-project}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    volumes:
+      - protected-areas-sc-db-main-volume:/var/lib/postgresql/data
+      - ../init_db.sql:/docker-entrypoint-initdb.d/10_init_db.sql:ro
+
+  protected-areas-sc-db-mutation:
+    image: postgis/postgis:15-3.3
+    container_name: protected-areas-sc-db-mutation
+    environment:
+      POSTGRES_USER: ${MUTATION_DB_USER:-mutation}
+      POSTGRES_PASSWORD: ${MUTATION_DB_PASSWORD:-mutation}
+      POSTGRES_DB: ${MUTATION_DB_NAME:-protected-areas-sc-db-mutation}
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${MUTATION_DB_USER:-mutation}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    volumes:
+      - protected-areas-sc-db-mutation-volume:/var/lib/postgresql/data
+      - ../init_mutation_db.sql:/docker-entrypoint-initdb.d/10_init_mutation_db.sql:ro
+
+  protected-areas-sc-airflow-init:
+    <<: *airflow-common
+    container_name: protected-areas-sc-airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        set -e
+        airflow db migrate
+        airflow users create \
+          --username ${_AIRFLOW_WWW_USER_USERNAME:-admin} \
+          --password ${_AIRFLOW_WWW_USER_PASSWORD:-admin} \
+          --firstname Airflow \
+          --lastname Admin \
+          --role Admin \
+          --email admin@example.com || true
+    environment:
+      <<: *airflow-common-env
+    user: "${AIRFLOW_UID:-50000}:0"
+
+  protected-areas-sc-airflow-webserver:
+    <<: *airflow-common
+    container_name: protected-areas-sc-airflow-webserver
+    command: bash -c "rm -f /opt/airflow/airflow-webserver.pid && airflow webserver"
+    ports:
+      - "8080:8080"
+    depends_on:
+      <<: *airflow-common-depends-on
+      protected-areas-sc-airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  protected-areas-sc-airflow-scheduler:
+    <<: *airflow-common
+    container_name: protected-areas-sc-airflow-scheduler
+    command: scheduler
+    depends_on:
+      <<: *airflow-common-depends-on
+      protected-areas-sc-airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  protected-areas-sc-airflow-triggerer:
+    <<: *airflow-common
+    container_name: protected-areas-sc-airflow-triggerer
+    command: triggerer
+    depends_on:
+      <<: *airflow-common-depends-on
+      protected-areas-sc-airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Serviço OGC (WMS/WFS/WCS) para o laboratório. Vetor: somente o schema `reporting`, com o
+  # login `geoserver_svc`. Raster: COG Gold publicado, montado somente leitura.
+  # A configuração (workspace, stores, camadas, estilos) é recriada por geoserver/bootstrap_layers.py.
+  protected-areas-sc-geoserver:
+    image: docker.osgeo.org/geoserver:2.25.2
+    container_name: protected-areas-sc-geoserver
+    environment:
+      GEOSERVER_ADMIN_USER: admin
+      GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD:?defina GEOSERVER_ADMIN_PASSWORD no .env}
+      SKIP_DEMO_DATA: "true"
+      EXTRA_JAVA_OPTS: "-Xms256m -Xmx1536m"
+    ports:
+      - "${GEOSERVER_PORT:-8600}:8080"
+    volumes:
+      - protected-areas-sc-geoserver-data:/opt/geoserver_data
+      - ${AIRFLOW_PROJ_DIR:-.}/data/gold/mapbiomas_lulc:/data/gold/mapbiomas_lulc:ro
+    depends_on:
+      protected-areas-sc-db-main:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost:8080/geoserver/web/wicket/resource/org.geoserver.web.GeoServerBasePage/img/logo.png"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  protected-areas-sc-airflow-db-volume:
+  protected-areas-sc-db-main-volume:
+  protected-areas-sc-db-mutation-volume:
+  protected-areas-sc-geoserver-data:
