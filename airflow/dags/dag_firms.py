@@ -50,7 +50,7 @@ with DAG(
     dag_id="DAG_FIRMS",
     description="Ingestao FIRMS NRT diaria, independente do ciclo cadastral.",
     start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
-    schedule="30 4 * * *",
+    schedule="0 6 * * *",  # diária: dado NRT
     catchup=False,
     max_active_runs=1,
     max_active_tasks=2,

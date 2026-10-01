@@ -6,7 +6,7 @@ from scripts_python.domain_dag_builder import build_domain_dag
 dag = build_domain_dag(
     dag_id="DAG_UCS",
     domain_name="ucs",
-    schedule="@daily",
+    schedule="0 6 * * 0",  # semanal: reconciliação; mudanças chegam pela API
     stages=(
         "extract",
         "validate",

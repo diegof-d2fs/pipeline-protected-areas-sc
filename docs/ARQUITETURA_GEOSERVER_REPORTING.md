@@ -94,8 +94,10 @@ Toda tarefa que grava dados lidos por `reporting` declara o Dataset `REPORTING_P
 | `DAG_MAPBIOMAS` | `load_area_statistics_postgres` |
 | `DAG_FIRMS`, `DAG_FIRMS_BACKFILL` | `summarize` |
 
-`DAG_GEOSERVER_SYNC` é agendada por esse Dataset (eventos simultâneos viram uma execução) e roda
-`publish_all` de `geoserver/bootstrap_layers.py`, idempotente:
+`DAG_GEOSERVER_SYNC` é agendada por esse Dataset (eventos simultâneos viram uma execução). Primeiro
+envia ao S3 o que mudou na Medallion local (`push_medallion`, sem efeito fora da AWS); na AWS, o nó de
+serviço baixa o COG Gold do S3 por SSM Run Command. Em seguida roda `publish_all` de
+`geoserver/bootstrap_layers.py`, idempotente:
 
 1. garante workspace, store, estilos e camadas vetoriais, recalculando as extensões;
 2. publica todo ano raster `PUBLISHED` (ano novo aparece sozinho) e remove camadas de anos que

@@ -247,9 +247,13 @@ class MapbiomasPipelineService:
     def publish_validation_reference(self, context: TaskExecutionContext) -> dict[str, Any]:
         """Publish the official state-area workbook as an immutable validation input."""
         source_path = Path(self.config.mapbiomas_statistics_source_path)
+        dataset = self._dataset(context)
+        reference_dir = self._validation_reference_dir(dataset)
+        # Like the raster package, a published reference remains usable without the raw landing.
+        if (reference_dir / "manifest.json").is_file() and not source_path.is_file():
+            return {"status": "replayed", **self._validate_package(reference_dir, "mapbiomas_area_reference")}
         if not self.config.mapbiomas_statistics_source_path or not source_path.is_file():
             raise MapbiomasPipelineError("Configured official MapBiomas state-statistics workbook is unavailable.")
-        dataset = self._dataset(context)
         return self._publish_package(
             source_dir=source_path.parent,
             filenames=(source_path.name,),

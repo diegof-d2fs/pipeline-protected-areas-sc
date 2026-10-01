@@ -7,6 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from scripts_python.config import PipelineConfig
+from scripts_python.object_storage import fetch_bronze_batch
+
 
 class ManifestInputError(RuntimeError):
     """Raised when dag_run.conf does not identify a valid immutable Bronze batch."""
@@ -37,6 +40,9 @@ def load_manifest_input(
 
     manifest_key = str(conf["manifest_key"])
     manifest_path = _resolve_under(bronze_root, manifest_key)
+    if not manifest_path.is_file():
+        # On AWS the API publishes to the Bronze bucket; the local Bronze is only a cache.
+        fetch_bronze_batch(PipelineConfig.from_env(), manifest_key)
     if not manifest_path.is_file():
         raise ManifestInputError(f"Bronze manifest does not exist: {manifest_key}")
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))

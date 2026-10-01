@@ -316,7 +316,7 @@ def test_firms_dags_are_separate_and_have_no_cadastral_sensors() -> None:
     daily = dag_bag.get_dag("DAG_FIRMS")
     backfill = dag_bag.get_dag("DAG_FIRMS_BACKFILL")
 
-    assert daily.schedule_interval == "30 4 * * *"
+    assert daily.schedule_interval == "0 6 * * *"
     assert backfill.schedule_interval is None
     assert set(daily.task_ids) == {
         "start", "resolve_windows", "process_window", "summarize", "finish"

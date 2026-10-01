@@ -39,6 +39,10 @@ class PipelineConfig:
     mapbiomas_alerta_territory_ids: tuple[int, ...] = (18393, 18387, 18407)
     mapbiomas_alerta_page_size: int = 100
     mapbiomas_alerta_max_attempts: int = 4
+    # Com os dois buckets configurados, o S3 é a fonte da verdade e o disco local é cache.
+    s3_bronze_bucket: str = ""
+    s3_lake_bucket: str = ""
+    aws_region: str = "us-east-1"
 
     @classmethod
     def from_env(cls) -> PipelineConfig:
@@ -107,4 +111,7 @@ class PipelineConfig:
             ),
             mapbiomas_alerta_page_size=int(getenv("MAPBIOMAS_ALERTA_PAGE_SIZE", "100")),
             mapbiomas_alerta_max_attempts=int(getenv("MAPBIOMAS_ALERTA_MAX_ATTEMPTS", "4")),
+            s3_bronze_bucket=getenv("S3_BRONZE_BUCKET", ""),
+            s3_lake_bucket=getenv("S3_LAKE_BUCKET", ""),
+            aws_region=getenv("AWS_REGION", "us-east-1"),
         )

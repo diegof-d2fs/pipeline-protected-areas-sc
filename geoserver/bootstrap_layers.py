@@ -259,6 +259,8 @@ def publish_vector_layers(geoserver: GeoServer, db: dict[str, str]) -> None:
                     {"@key": "Expose primary keys", "$": "true"},
                     # Views não têm chave no catálogo; sem isto a paginação do WFS falha.
                     {"@key": "Primary key metadata table", "$": "reporting.gt_pk_metadata"},
+                    # Local sem TLS; no RDS (rds.force_ssl=1) a conexão exige REQUIRE.
+                    {"@key": "SSL mode", "$": db["ssl_mode"]},
                     {"@key": "Loose bbox", "$": "true"},
                     {"@key": "Estimated extends", "$": "false"},
                     {"@key": "validate connections", "$": "true"},
@@ -440,6 +442,7 @@ def publish_all(gold_root: Path) -> list[str]:
     )
     db = {
         "host": os.environ.get("GEOSERVER_DB_HOST", "protected-areas-sc-db-main"),
+        "ssl_mode": os.environ.get("GEOSERVER_DB_SSL_MODE", "DISABLE"),
         "port": os.environ.get("GEOSERVER_DB_PORT", "5432"),
         "database": os.environ.get("PROJECT_DB_NAME", "protected-areas-sc-db-main"),
         "password": required_env("REPORTING_GEOSERVER_DB_PASSWORD"),

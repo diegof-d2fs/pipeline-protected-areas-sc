@@ -36,7 +36,7 @@ class GeoServerPublisherTest(unittest.TestCase):
         bag = DagBag(str(Path(__file__).resolve().parents[1] / "dags"), include_examples=False)
         self.assertEqual(bag.import_errors, {})
         dag = bag.get_dag("DAG_GEOSERVER_SYNC")
-        self.assertEqual([task.task_id for task in dag.tasks], ["sync_geoserver"])
+        self.assertEqual(sorted(task.task_id for task in dag.tasks), ["push_medallion", "sync_geoserver"])
         self.assertEqual(
             {dag_id for dag_id, candidate in bag.dags.items() if any(t.outlets for t in candidate.tasks)},
             {"DAG_UCS", "DAG_UC_ZA", "DAG_ZA_BUFFER", "DAG_PRODES", "DAG_MAPBIOMAS_ALERTA",

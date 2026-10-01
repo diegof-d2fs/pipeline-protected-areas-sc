@@ -35,6 +35,7 @@ from shapely.geometry import MultiPolygon, Polygon, shape
 from scripts_python.config import PipelineConfig
 from scripts_python.domain_pipeline import DomainPipelineService, TaskExecutionContext
 from scripts_python.manifest_input import load_manifest_input
+from scripts_python.object_storage import push_quality
 
 LOGGER = logging.getLogger("pipeline.ucs")
 
@@ -1396,6 +1397,7 @@ class UcsPipelineService(DomainPipelineService):
             encoding="utf-8",
         )
         temporary.replace(target / "result.json")
+        push_quality(self.config)
 
     def _write_api_error_result(
         self,
@@ -1429,6 +1431,7 @@ class UcsPipelineService(DomainPipelineService):
             encoding="utf-8",
         )
         temporary.replace(target / "result.json")
+        push_quality(self.config)
 
     def _write_quality_report(
         self,

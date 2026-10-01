@@ -25,6 +25,7 @@ from shapely.ops import unary_union
 from scripts_python.config import PipelineConfig
 from scripts_python.domain_pipeline import DomainPipelineService, TaskExecutionContext
 from scripts_python.manifest_input import load_manifest_input
+from scripts_python.object_storage import push_quality
 
 LOGGER = logging.getLogger("pipeline.za_buffer")
 
@@ -2161,6 +2162,7 @@ class ZaBufferPipelineService(DomainPipelineService):
             encoding="utf-8",
         )
         temporary.replace(target / "result.json")
+        push_quality(self.config)
 
     def _state_path(self, context: TaskExecutionContext, branch: str) -> Path:
         return self._run_dir(context) / f"state_{branch}.json"

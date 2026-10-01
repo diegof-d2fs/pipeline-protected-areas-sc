@@ -49,7 +49,7 @@ with DAG(
     description="PRODES clipping pipeline with SC pre-filter and zone routing",
     start_date=datetime(2025, 1, 1),
     catchup=False,
-    schedule="0 3 * * *",
+    schedule="0 6 1 * *",  # mensal: a fonte PRODES é anual
     tags=["tcc", "geospatial", "prodes"],
 ) as dag:
     start = EmptyOperator(task_id="start")

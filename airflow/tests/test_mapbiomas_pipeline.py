@@ -92,6 +92,22 @@ def test_bronze_publication_rejects_changed_source_on_replay(tmp_path: Path) -> 
         service.bootstrap_bronze(context)
 
 
+def test_validation_reference_replays_from_bronze_without_raw_landing(tmp_path: Path) -> None:
+    """A node that only received the Bronze (no raw landing) must still publish the reference."""
+    service, _, context, _ = _service_with_sources(tmp_path)
+    workbook = tmp_path / "raw" / "MAPBIOMAS_BRAZIL-COL.11-BIOME_STATE.xlsx"
+    workbook.parent.mkdir()
+    workbook.write_bytes(b"workbook")
+    service.config = PipelineConfig(**{**service.config.__dict__, "mapbiomas_statistics_source_path": str(workbook)})
+
+    first = service.publish_validation_reference(context)
+    workbook.unlink()
+    second = service.publish_validation_reference(context)
+
+    assert first["status"] == "published"
+    assert second["status"] == "replayed"
+
+
 def test_dataset_conf_overrides_year_in_every_path(tmp_path: Path) -> None:
     """A historical backfill run selects its own Bronze partition and raster name."""
     service, _, context, dataset = _service_with_sources(tmp_path, conf={"year": 1985})

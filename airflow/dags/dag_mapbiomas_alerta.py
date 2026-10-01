@@ -49,7 +49,7 @@ with DAG(
     description="MapBiomas Alerta clipping pipeline with SC pre-filter and zone routing",
     start_date=datetime(2025, 1, 1),
     catchup=False,
-    schedule="0 4 * * 1",
+    schedule="0 6 * * 1",  # semanal
     max_active_runs=1,
     tags=["tcc", "geospatial", "mapbiomas_alerta"],
 ) as dag:
