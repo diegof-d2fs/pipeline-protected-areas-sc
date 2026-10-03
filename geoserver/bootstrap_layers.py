@@ -430,6 +430,16 @@ def refresh_caches(geoserver: GeoServer, layers: list[str]) -> None:
 def harden_services(geoserver: GeoServer) -> None:
     # Somente leitura também na borda OGC: WFS sem Transaction/LockFeature.
     geoserver.request("PUT", "/rest/services/wfs/settings.json", {"wfs": {"serviceLevel": "BASIC"}})
+    # Atrás do domínio público, os documentos de capacidades devem anunciar o endereço externo,
+    # não o IP interno do nó de serviço.
+    proxy_base_url = os.environ.get("GEOSERVER_PROXY_BASE_URL")
+    if proxy_base_url:
+        # O PUT de /rest/settings substitui o objeto inteiro: campos omitidos seriam zerados.
+        _, payload = geoserver.request("GET", "/rest/settings.json")
+        settings = json.loads(payload)
+        if settings["global"]["settings"].get("proxyBaseUrl") != proxy_base_url:
+            settings["global"]["settings"]["proxyBaseUrl"] = proxy_base_url
+            geoserver.request("PUT", "/rest/settings.json", settings)
 
 
 def publish_all(gold_root: Path) -> list[str]:
