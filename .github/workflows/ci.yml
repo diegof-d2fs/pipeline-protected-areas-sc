@@ -1,0 +1,78 @@
+# Testes em todo push e pull request; no main, publica a imagem do Airflow no ECR e registra a
+# versão no SSM. O nó de processamento usa a versão nova no próximo boot (nunca interrompe uma DAG).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: pa_test
+          POSTGIS_GDAL_ENABLED_DRIVERS: GTiff
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci -d pa_test" --health-interval 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Esquema do banco de teste
+        env:
+          PGPASSWORD: ci
+        run: psql -h localhost -U ci -d pa_test -q -v ON_ERROR_STOP=1 -f init_db.sql
+
+      - name: Imagem
+        run: docker build -f airflow/Dockerfile -t pa-sc-airflow:${{ github.sha }} .
+
+      - name: Testes
+        run: |
+          docker run --rm --network host \
+            -e MUTATION_TEST_DB_URL=postgresql://ci:ci@localhost:5432/pa_test \
+            -v "$PWD/airflow/tests:/opt/airflow/tests:ro" -w /opt/airflow/dags \
+            --entrypoint bash pa-sc-airflow:${{ github.sha }} \
+            -c "airflow db migrate > /dev/null && python -m pytest /opt/airflow/tests -q -p no:cacheprovider"
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && vars.AWS_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency: deploy-airflow
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Publicar imagem
+        id: image
+        run: |
+          tag="${GITHUB_SHA::7}"
+          image="${{ steps.ecr.outputs.registry }}/pa-sc/airflow:$tag"
+          docker build -f airflow/Dockerfile -t "$image" .
+          docker push "$image"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Registrar versão
+        run: |
+          aws ssm put-parameter --name /pa-sc/prod/deploy/airflow_image_tag \
+            --value "${{ steps.image.outputs.tag }}" --overwrite > /dev/null
+          echo "Versão ${{ steps.image.outputs.tag }} registrada; vale a partir do próximo boot do nó de processamento." >> "$GITHUB_STEP_SUMMARY"

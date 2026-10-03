@@ -12,6 +12,10 @@ RUN apt-get update \
 
 USER airflow
 
+# DAGs montadas por construtor (DAG_UCS, DAG_UC_ZA) não contêm a palavra "airflow" no arquivo e
+# seriam ignoradas pelo modo seguro de descoberta.
+ENV AIRFLOW__CORE__DAG_DISCOVERY_SAFE_MODE=false
+
 COPY --chown=airflow:root airflow/requirements-airflow.txt /opt/airflow/requirements-airflow.txt
 
 RUN pip install --no-cache-dir \
