@@ -12,7 +12,7 @@ RUN apt-get update \
 
 USER airflow
 
-COPY --chown=airflow:root requirements-airflow.txt /opt/airflow/requirements-airflow.txt
+COPY --chown=airflow:root airflow/requirements-airflow.txt /opt/airflow/requirements-airflow.txt
 
 RUN pip install --no-cache-dir \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt" \
@@ -22,3 +22,9 @@ RUN pip install --no-cache-dir \
       -r /opt/airflow/requirements-airflow.txt \
     && pip check \
     && python -c "import fiona, geopandas, numpy, pandas, pyarrow, pyproj, rasterio, shapely; from pyproj import Geod; assert rasterio.__gdal_version__; assert pyproj.proj_version_str; assert Geod(ellps='WGS84').a > 0"
+
+# Código do pipeline e do publicador do GeoServer embutidos: a imagem, identificada pelo commit,
+# é a unidade de deploy. No desenvolvimento local, as pastas montadas sobrepõem este conteúdo.
+COPY --chown=airflow:root airflow/dags /opt/airflow/dags
+COPY --chown=airflow:root geoserver /opt/airflow/geoserver
+COPY --chown=airflow:root airflow/config /opt/airflow/config

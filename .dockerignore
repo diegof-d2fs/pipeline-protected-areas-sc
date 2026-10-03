@@ -1,0 +1,15 @@
+# Contexto de build da imagem do Airflow (raiz do repositório): só código entra na imagem.
+.git
+.claude
+.venv
+.playwright-mcp
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+airflow/data
+airflow/logs
+airflow/tests
+airflow/.env
+docs
+*.zip
+*.png
