@@ -955,7 +955,33 @@ class FirmsPipelineService:
         )
 
     def _load_state_boundary(self) -> gpd.GeoDataFrame:
+        """Read the canonical IBGE Bronze package, including on a fresh cloud node."""
+        package = Path(
+            self.config.medallion_bronze_path,
+            "boundaries", "source=ibge", "year=2025", "area=sc",
+        )
         source = Path(self.config.sc_boundary_source_dir) / "limites_SC.geojson"
+        if package.exists():
+            manifest_path = package / "manifest.json"
+            if not manifest_path.is_file():
+                raise FirmsPipelineError("Santa Catarina Bronze boundary manifest is missing.")
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if manifest.get("domain") != "ibge_sc_boundary":
+                raise FirmsPipelineError("Santa Catarina Bronze boundary domain is invalid.")
+            inventory = manifest.get("files")
+            if not isinstance(inventory, list):
+                raise FirmsPipelineError("Santa Catarina Bronze boundary inventory is invalid.")
+            entries = [item for item in inventory if isinstance(item, dict) and item.get("name") == source.name]
+            if len(entries) != 1:
+                raise FirmsPipelineError("Santa Catarina Bronze boundary inventory is incomplete.")
+            source = package / source.name
+            entry = entries[0]
+            if (
+                not source.is_file()
+                or self._sha256(source.read_bytes()) != entry.get("checksum_sha256")
+                or source.stat().st_size != entry.get("byte_size")
+            ):
+                raise FirmsPipelineError("Santa Catarina Bronze boundary checksum or size mismatch.")
         if not source.is_file():
             raise FirmsPipelineError(f"Santa Catarina boundary is unavailable: {source}")
         boundary = gpd.read_file(source)

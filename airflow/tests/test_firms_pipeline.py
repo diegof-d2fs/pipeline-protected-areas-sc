@@ -403,3 +403,44 @@ def test_firms_dags_are_separate_and_have_no_cadastral_sensors() -> None:
         "start", "plan_windows", "process_window", "summarize", "finish"
     }
     assert all("sensor" not in task.__class__.__name__.casefold() for task in daily.tasks)
+
+
+def _bronze_boundary(config: PipelineConfig) -> Path:
+    package = Path(config.medallion_bronze_path, "boundaries", "source=ibge", "year=2025", "area=sc")
+    package.mkdir(parents=True)
+    content = (Path(config.sc_boundary_source_dir) / "limites_SC.geojson").read_bytes()
+    target = package / "limites_SC.geojson"
+    target.write_bytes(content)
+    (package / "manifest.json").write_text(json.dumps({
+        "domain": "ibge_sc_boundary",
+        "files": [{"name": target.name, "checksum_sha256": FirmsPipelineService._sha256(content), "byte_size": len(content)}],
+    }), encoding="utf-8")
+    return target
+
+
+def test_firms_replays_from_bronze_without_raw_landing(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    _bronze_boundary(config)
+    service = FirmsPipelineService(config)
+    Path(config.sc_boundary_source_dir, "limites_SC.geojson").unlink()
+    content = (CSV_HEADER + "-27.10,-49.10,330,1,1,2001-03-02,0301,Terra,MODIS,90,6.1,290,5,D,0\n").encode()
+    window = FirmsWindow("MODIS_SP", date(2001, 3, 1), date(2001, 3, 5), "backfill")
+    detections, metrics = service._normalize(content, window, _context(window.to_conf()), {"checksum_sha256": "e" * 64})
+    assert len(detections) == 1
+    assert metrics["source_records"] == 1
+
+
+def test_firms_rejects_corrupted_bronze_even_when_raw_is_available(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    target = _bronze_boundary(config)
+    target.write_bytes(target.read_bytes() + b"\n")
+    with pytest.raises(FirmsPipelineError, match="checksum or size mismatch"):
+        FirmsPipelineService(config)._load_state_boundary()
+
+
+def test_firms_rejects_uncommitted_bronze_boundary(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    target = _bronze_boundary(config)
+    (target.parent / "manifest.json").unlink()
+    with pytest.raises(FirmsPipelineError, match="manifest is missing"):
+        FirmsPipelineService(config)._load_state_boundary()

@@ -226,3 +226,13 @@ Não restou diferença não explicada entre o backfill 2020 e a base manual de r
 ## Integração API e S3
 
 FIRMS continua fonte interna do Airflow; a FastAPI não recebe seus arquivos. Uma mudança cadastral não deve disparar automaticamente nova aquisição. Reprocessamento deve reutilizar Silver por janela e recalcular apenas relações. As chaves relativas e o contrato de storage devem permitir trocar o filesystem por S3 sem mudar regras de domínio.
+
+### Replay do FIRMS a partir da Bronze
+
+O limite IBGE de Santa Catarina é resolvido preferencialmente na partição
+`bronze/boundaries/source=ibge/year=2025/area=sc/`. O leitor exige o manifesto do domínio
+`ibge_sc_boundary`, a entrada `limites_SC.geojson`, o SHA-256 e o tamanho declarados.
+A pasta `raw/ibge` só é consultada quando ainda não existe esse pacote na Bronze.
+Um pacote Bronze incompleto ou alterado interrompe a publicação; a fonte raw não mascara
+falhas de integridade. Isso permite executar o backfill em uma máquina nova sincronizada
+com o S3, sem depender da landing local do primeiro carregamento.
