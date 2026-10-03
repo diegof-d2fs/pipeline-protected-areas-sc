@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 
@@ -323,6 +324,68 @@ def test_daily_summary_allows_one_source_and_rejects_total_failure(tmp_path: Pat
             ],
         )
     assert '"status": "FAILED"' in summary_path.read_text(encoding="utf-8")
+
+
+def test_recross_relates_published_history_to_new_area_without_api(tmp_path: Path) -> None:
+    service = FirmsPipelineService(_config(tmp_path), client_factory=lambda: pytest.fail("API chamada"))
+    content = (
+        CSV_HEADER + "-27.10,-49.10,330,0.4,0.4,2020-03-02,0301,N20,VIIRS,h,2,290,5,D,0\n"
+    ).encode()
+    window = FirmsWindow("VIIRS_NOAA20_NRT", date(2020, 3, 1), date(2020, 3, 5), "backfill")
+    context = _context(window.to_conf())
+    bronze = {"checksum_sha256": "c" * 64, "received_at": "2020-03-06T00:00:00+00:00"}
+    detections, _ = service._normalize(content, window, context, bronze)
+    service._publish_silver(detections, window, context, bronze)
+    bronze_dir = service._partition(service.config.medallion_bronze_path, window, context)
+    bronze_dir.mkdir(parents=True)
+    (bronze_dir / "manifest.json").write_text(json.dumps(bronze), encoding="utf-8")
+    new_uc = gpd.GeoDataFrame(
+        [{"id_uc": 42, "geometry": box(-49.2, -27.2, -49.0, -27.0)}], crs="EPSG:4674"
+    )
+    zone = gpd.GeoDataFrame(
+        [{"id_buffer_abrangencia": 7, "id_uc": 42, "geometry": box(-49.5, -27.5, -48.7, -26.7)}],
+        crs="EPSG:4674",
+    )
+    official = gpd.GeoDataFrame(
+        columns=["id_za_oficial", "id_uc", "geometry"], geometry="geometry", crs="EPSG:4674"
+    )
+    service._load_reference_layers = lambda: (new_uc, official, zone)
+    loaded: list = []
+    service._load_postgres = lambda relations, *_: loaded.append(relations) or len(relations)
+
+    summary = service.recross_published(
+        TaskExecutionContext("DAG_FIRMS_RECROSS", "recross_published", "2026-10-03", "chain__x", {})
+    )
+
+    assert summary["silver_partitions"] == 1
+    assert summary["inserted_relations"] == 1
+    assert loaded[0][["id_uc", "tipo_cruzamento"]].to_dict("records") == [
+        {"id_uc": 42, "tipo_cruzamento": "UC"}
+    ]
+    gold = Path(service.config.medallion_gold_path, "firms", "recross", "run_id=chain__x")
+    assert list(gold.rglob("relations.geojson"))
+
+
+def test_recross_without_published_history_does_nothing(tmp_path: Path) -> None:
+    service = FirmsPipelineService(_config(tmp_path))
+    service._load_reference_layers = lambda: pytest.fail("sem histórico, sem consulta ao banco")
+
+    summary = service.recross_published(
+        TaskExecutionContext("DAG_FIRMS_RECROSS", "recross_published", "2026-10-03", "chain__y", {})
+    )
+
+    assert summary["silver_partitions"] == 0
+    assert summary["inserted_relations"] == 0
+
+
+def test_cadastral_chains_trigger_firms_recross() -> None:
+    dag_bag = DagBag(include_examples=False)
+    assert not dag_bag.import_errors
+    for dag_id in ("DAG_ZA_BUFFER", "DAG_UC_ZA"):
+        assert "trigger_DAG_FIRMS_RECROSS" in dag_bag.get_dag(dag_id).task_ids
+    recross = dag_bag.get_dag("DAG_FIRMS_RECROSS")
+    assert recross.schedule_interval is None
+    assert [task.task_id for task in recross.tasks if task.outlets] == ["recross_published"]
 
 
 def test_firms_dags_are_separate_and_have_no_cadastral_sensors() -> None:

@@ -7,5 +7,7 @@ dag = build_domain_dag(
     domain_name="ucs",
     schedule=None,
     stages=("extract", "validate", "transform", "load_silver", "load_gold", "load_postgres"),
-    trigger_dags_for_directed_run=("DAG_PRODES", "DAG_MAPBIOMAS_ALERTA", "DAG_MAPBIOMAS"),
+    trigger_dags_for_directed_run=(
+        "DAG_PRODES", "DAG_MAPBIOMAS_ALERTA", "DAG_MAPBIOMAS", "DAG_FIRMS_RECROSS",
+    ),
 )

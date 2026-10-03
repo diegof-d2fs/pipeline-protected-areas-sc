@@ -31,7 +31,7 @@ O Docker Compose do pipeline usa Airflow 2.8.4 com `LocalExecutor`, scheduler, w
 6. UC dispara ZA/Buffer de Abrangência; após a barreira `validate_zone_readiness`, ZA/Buffer de Abrangência dispara e aguarda PRODES, MapBiomas Alerta e MapBiomas Uso/Cobertura.
 7. O status da importação é reconciliado consultando o DAG run e o resultado do pipeline.
 
-**CONFIRMADO:** FIRMS permanece fora do trigger cadastral automático mesmo após sua implementação. A aquisição semanal e o backfill são independentes; uma futura reassociação cadastral deverá reutilizar a Silver, sem nova chamada à fonte.
+**CONFIRMADO:** a aquisição FIRMS (semanal e backfill) permanece fora do ciclo cadastral. Na cadeia cadastral entra a `DAG_FIRMS_RECROSS`, que relaciona o histórico de focos já publicado na Silver com UCs, ZAs oficiais e Buffers de Abrangência novos ou alterados, sem nova chamada à fonte.
 
 Execuções temáticas periódicas não esperam uma DAG cadastral com a mesma data lógica.
 Elas usam o snapshot ativo já publicado. O encadeamento cadastral acima é uma execução

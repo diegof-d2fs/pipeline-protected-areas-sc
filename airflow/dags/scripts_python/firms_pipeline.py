@@ -467,11 +467,101 @@ class FirmsPipelineService:
             "confidence_filtered_records": confidence_filtered_records,
         }
 
-    def _build_relations(self, detections: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    def recross_published(self, context: TaskExecutionContext) -> dict[str, Any]:
+        """Relate every published FIRMS detection to the currently active areas.
+
+        Runs after a cadastral change (new or replaced UC, official ZA or Buffer de Abrangência)
+        without calling the FIRMS API: detections already normalized in the Silver are related
+        with the same rule as the regular load, and relations that already exist are ignored by
+        the unique key, so only the changed areas receive new rows. The relations created by
+        this run get their own Gold partition.
+        """
+        silver_root = Path(self.config.medallion_silver_path)
+        partitions = sorted(
+            manifest.parent
+            for manifest in (silver_root / "firms").glob(
+                "product=*/start_date=*/end_date=*/run_id=*/manifest.json"
+            )
+        )
+        reference = self._load_reference_layers() if partitions else None
+        relations_total = 0
+        inserted_total = 0
+        for partition in partitions:
+            detections = gpd.read_parquet(partition / "detections.parquet")
+            relations = self._build_relations(detections, reference)
+            if relations.empty:
+                continue
+            relative = partition.relative_to(silver_root)
+            bronze = json.loads(
+                (Path(self.config.medallion_bronze_path) / relative / "manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            silver = json.loads((partition / "manifest.json").read_text(encoding="utf-8"))
+            gold = self._publish_recross_gold(relations, relative, context, silver)
+            relations_total += len(relations)
+            inserted_total += self._load_postgres(relations, None, context, bronze, silver, gold)
+        summary = {
+            "status": "SUCCESS",
+            "mode": "recross",
+            "silver_partitions": len(partitions),
+            "gold_relations": relations_total,
+            "inserted_relations": inserted_total,
+            "run_id": context.run_id,
+        }
+        self._write_run_quality(context, summary)
+        return summary
+
+    def _publish_recross_gold(
+        self,
+        relations: gpd.GeoDataFrame,
+        relative: Path,
+        context: TaskExecutionContext,
+        silver: dict[str, Any],
+    ) -> dict[str, Any]:
+        target = (
+            Path(self.config.medallion_gold_path)
+            / "firms"
+            / "recross"
+            / f"run_id={self._safe_segment(context.run_id)}"
+            / Path(*relative.parts[1:])
+        )
+        manifest = {
+            "schema_version": "1.0",
+            "domain": "firms",
+            "stage": "gold",
+            "mode": "recross",
+            "run_id": context.run_id,
+            "source_product": silver.get("source_product"),
+            "relation_count": len(relations),
+            "source_checksum": silver.get("source_checksum"),
+            "object_key": self._relative(target / "relations.geojson"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if not (target / "manifest.json").is_file():
+            serializable = relations.copy()
+            if "acquired_at_utc" in serializable:
+                serializable["acquired_at_utc"] = serializable["acquired_at_utc"].apply(
+                    lambda value: value.isoformat() if pd.notna(value) else None
+                )
+            self._publish_directory(
+                target,
+                {
+                    "relations.geojson": serializable.to_json(drop_id=True).encode("utf-8"),
+                    "manifest.json": self._json_bytes(manifest),
+                },
+            )
+        return manifest
+
+    def _build_relations(
+        self,
+        detections: gpd.GeoDataFrame,
+        reference: tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame] | None = None,
+    ) -> gpd.GeoDataFrame:
         eligible = detections[detections["publish_gold"]].copy()
         if eligible.empty:
             return self._empty_relations()
-        ucs, official_zones, buffer_abrangencia = self._load_reference_layers()
+        ucs, official_zones, buffer_abrangencia = reference or self._load_reference_layers()
         records: list[dict[str, Any]] = []
         for detection in eligible.itertuples(index=False):
             candidates: dict[int, tuple[str, int | None, int | None]] = {}
@@ -632,7 +722,7 @@ class FirmsPipelineService:
     def _load_postgres(
         self,
         relations: gpd.GeoDataFrame,
-        window: FirmsWindow,
+        window: FirmsWindow | None,
         context: TaskExecutionContext,
         bronze: dict[str, Any],
         silver: dict[str, Any],

@@ -171,6 +171,7 @@ A DAG executa semanalmente (segunda, 06:00 UTC). Cada run cobre os sete dias com
 
 ## Arquivos implementados
 
+- `airflow/dags/dag_firms_recross.py`: recruzamento do histórico publicado com áreas cadastrais novas ou alteradas, disparado na cadeia cadastral, sem chamada à API;
 - `airflow/dags/dag_firms.py`: orquestração semanal fina e mapeada por janela e produto;
 - `airflow/dags/dag_firms_backfill.py`: paginação histórica retomável;
 - `airflow/dags/scripts_python/firms_pipeline.py`: service de domínio compartilhado;

@@ -40,5 +40,5 @@ class GeoServerPublisherTest(unittest.TestCase):
         self.assertEqual(
             {dag_id for dag_id, candidate in bag.dags.items() if any(t.outlets for t in candidate.tasks)},
             {"DAG_UCS", "DAG_UC_ZA", "DAG_ZA_BUFFER", "DAG_PRODES", "DAG_MAPBIOMAS_ALERTA",
-             "DAG_MAPBIOMAS", "DAG_FIRMS", "DAG_FIRMS_BACKFILL"},
+             "DAG_MAPBIOMAS", "DAG_FIRMS", "DAG_FIRMS_BACKFILL", "DAG_FIRMS_RECROSS"},
         )

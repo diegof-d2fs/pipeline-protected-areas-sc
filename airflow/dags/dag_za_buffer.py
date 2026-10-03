@@ -106,9 +106,9 @@ with DAG(
         python_callable=lambda **kwargs: bool((kwargs["dag_run"].conf or {}).get("manifest_key")),
     )
     finish.set_downstream(directed_run)
-    # Apenas pipelines temáticos efetivamente implementados participam do contrato dirigido.
-    # FIRMS permanece excluído enquanto seu serviço de domínio não está implementado.
-    for thematic_dag_id in ("DAG_PRODES", "DAG_MAPBIOMAS_ALERTA", "DAG_MAPBIOMAS"):
+    # Temas recalculados para a área alterada. FIRMS entra pelo recruzamento do histórico já
+    # publicado; a aquisição de focos segue independente do ciclo cadastral.
+    for thematic_dag_id in ("DAG_PRODES", "DAG_MAPBIOMAS_ALERTA", "DAG_MAPBIOMAS", "DAG_FIRMS_RECROSS"):
         directed_run >> TriggerDagRunOperator(
             task_id=f"trigger_{thematic_dag_id}",
             trigger_dag_id=thematic_dag_id,
