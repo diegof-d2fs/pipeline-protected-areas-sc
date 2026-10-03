@@ -31,7 +31,7 @@ O Docker Compose do pipeline usa Airflow 2.8.4 com `LocalExecutor`, scheduler, w
 6. UC dispara ZA/Buffer de Abrangência; após a barreira `validate_zone_readiness`, ZA/Buffer de Abrangência dispara e aguarda PRODES, MapBiomas Alerta e MapBiomas Uso/Cobertura.
 7. O status da importação é reconciliado consultando o DAG run e o resultado do pipeline.
 
-**CONFIRMADO:** FIRMS permanece fora do trigger cadastral automático mesmo após sua implementação. A aquisição diária e o backfill são independentes; uma futura reassociação cadastral deverá reutilizar a Silver, sem nova chamada à fonte.
+**CONFIRMADO:** FIRMS permanece fora do trigger cadastral automático mesmo após sua implementação. A aquisição semanal e o backfill são independentes; uma futura reassociação cadastral deverá reutilizar a Silver, sem nova chamada à fonte.
 
 Execuções temáticas periódicas não esperam uma DAG cadastral com a mesma data lógica.
 Elas usam o snapshot ativo já publicado. O encadeamento cadastral acima é uma execução
@@ -49,7 +49,7 @@ flowchart TD
   Z2[DAG_ZA_BUFFER] -. sensor agendado .-> P
   U3[DAG_UCS] -. sensor agendado .-> A
   Z3[DAG_ZA_BUFFER] -. sensor agendado .-> A
-  F[DAG_FIRMS: diária] -. lê snapshot ativo .-> PG[(PostGIS)]
+  F[DAG_FIRMS: semanal] -. lê snapshot ativo .-> PG[(PostGIS)]
   FB[DAG_FIRMS_BACKFILL: manual] -. lê snapshot ativo .-> PG
 ```
 
@@ -63,7 +63,7 @@ Os services especializados implementam a regra de domínio. Os arquivos de DAG d
 - PostGIS: snapshot cadastral, histórico e relações temáticas consultáveis.
 - Quality: `summary.json` e rejeições CSV/GeoJSON por run/stage/branch.
 
-O cleanup Medallion atual apaga diretórios Silver e Gold com mais de 30 dias, diariamente às 02:00, usando timestamp do nome ou `mtime`. Não possui dry-run ou configuração por ambiente.
+O cleanup Medallion atual apaga diretórios Silver e Gold com mais de 30 dias, semanalmente (segunda, 06:15 UTC), usando timestamp do nome ou `mtime`. Não possui dry-run ou configuração por ambiente.
 
 ## Riscos arquiteturais confirmados
 

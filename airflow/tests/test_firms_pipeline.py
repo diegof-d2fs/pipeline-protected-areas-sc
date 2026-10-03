@@ -128,10 +128,25 @@ def test_incremental_windows_are_bounded_and_independent(tmp_path: Path) -> None
 
     assert [item["window_conf"]["source_product"] for item in windows] == [
         "VIIRS_NOAA20_NRT",
+        "VIIRS_NOAA20_NRT",
+        "VIIRS_NOAA21_NRT",
         "VIIRS_NOAA21_NRT",
     ]
-    assert {item["window_conf"]["start_date"] for item in windows} == {"2026-09-12"}
-    assert {item["window_conf"]["end_date"] for item in windows} == {"2026-09-13"}
+    # Sete dias até 13/09 mais um de sobreposição, em blocos de até cinco dias por produto.
+    assert sorted({(item["window_conf"]["start_date"], item["window_conf"]["end_date"]) for item in windows}) == [
+        ("2026-09-06", "2026-09-10"),
+        ("2026-09-11", "2026-09-13"),
+    ]
+    assert len(windows) == 4
+
+
+def test_incremental_period_follows_configuration(tmp_path: Path) -> None:
+    service = FirmsPipelineService(_config(tmp_path))
+    daily = service.resolve_incremental_windows(_context({"period_days": 1}))
+
+    assert {(item["window_conf"]["start_date"], item["window_conf"]["end_date"]) for item in daily} == {
+        ("2026-09-12", "2026-09-13")
+    }
 
 
 def test_normalization_filters_sc_and_preserves_viirs_confidence(tmp_path: Path) -> None:
@@ -316,7 +331,7 @@ def test_firms_dags_are_separate_and_have_no_cadastral_sensors() -> None:
     daily = dag_bag.get_dag("DAG_FIRMS")
     backfill = dag_bag.get_dag("DAG_FIRMS_BACKFILL")
 
-    assert daily.schedule_interval == "0 6 * * *"
+    assert daily.schedule_interval == "0 6 * * 1"
     assert backfill.schedule_interval is None
     assert set(daily.task_ids) == {
         "start", "resolve_windows", "process_window", "summarize", "finish"

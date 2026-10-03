@@ -274,7 +274,7 @@ Implementadas como templates operacionais:
 - DAG_FIRMS
 
 As DAGs tematicas usam services dedicados. No fluxo cadastral, PRODES, MapBiomas Alerta e
-MapBiomas Uso/Cobertura e disparado e aguardado no fluxo cadastral. FIRMS opera de forma independente em uma DAG diaria NRT e outra DAG manual de backfill historico.
+MapBiomas Uso/Cobertura e disparado e aguardado no fluxo cadastral. FIRMS opera de forma independente em uma DAG semanal NRT e outra DAG manual de backfill historico.
 
 ## Cobertura de requisitos do PRD (escopo backend)
 

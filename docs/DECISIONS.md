@@ -20,7 +20,7 @@ MODIS NRT; SNPP; NOAA‑20; NOAA‑21; combinação de produtos.
 
 ### Decisão
 
-Operação diária: `VIIRS_NOAA20_NRT` + `VIIRS_NOAA21_NRT`, preservando a origem e deduplicando apenas replays da mesma detecção/produto. Para o histórico desde 2015, usar Standard Processing via API quando disponível, incluindo SNPP e MODIS como séries identificadas separadamente; arquivos locais são fallback/reconciliação. Não misturar contagens de sensores sem informar disponibilidade/cobertura.
+Operação incremental semanal: `VIIRS_NOAA20_NRT` + `VIIRS_NOAA21_NRT`, preservando a origem e deduplicando apenas replays da mesma detecção/produto. Para o histórico desde 2015, usar Standard Processing via API quando disponível, incluindo SNPP e MODIS como séries identificadas separadamente; arquivos locais são fallback/reconciliação. Não misturar contagens de sensores sem informar disponibilidade/cobertura.
 
 ### Consequências e impacto no TCC 3
 
@@ -36,7 +36,7 @@ A FIRMS Area API devolve CSV na própria resposta; não expõe submit/job/pollin
 
 ### Decisão
 
-Usar chamada HTTP síncrona com timeout, retry/backoff e idempotência por janela/produto/checksum. A DAG é diária; se somente uma das duas fontes operacionais concluir, publica o resultado disponível com estado de qualidade `DEGRADED` e alerta. A DAG falha somente quando ambas as fontes falham. Submit e polling são “não aplicáveis”. Não criar sensor FIRMS sem fonte assíncrona real.
+Usar chamada HTTP síncrona com timeout, retry/backoff e idempotência por janela/produto/checksum. A DAG é semanal e cobre os sete dias anteriores à execução, em janelas de até cinco dias; se somente uma das duas fontes operacionais concluir, publica o resultado disponível com estado de qualidade `DEGRADED` e alerta. A DAG falha somente quando ambas as fontes falham. Submit e polling são “não aplicáveis”. Não criar sensor FIRMS sem fonte assíncrona real.
 
 ### Consequências
 

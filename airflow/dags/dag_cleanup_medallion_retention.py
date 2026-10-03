@@ -92,7 +92,7 @@ with DAG(
     description="Cleanup SILVER/GOLD folders older than 30 days",
     start_date=datetime(2025, 1, 1),
     catchup=False,
-    schedule="15 6 * * *",  # diária, dentro da janela
+    schedule="15 6 * * 1",  # semanal, segunda, dentro da janela
     tags=["tcc", "geospatial", "maintenance", "cleanup"],
 ) as dag:
     PythonOperator(

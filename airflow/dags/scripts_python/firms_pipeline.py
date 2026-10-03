@@ -34,6 +34,9 @@ class FirmsPipelineError(RuntimeError):
     """Report a FIRMS pipeline contract or publication failure."""
 
 
+# Maior intervalo aceito pela FIRMS Area API numa única consulta.
+MAX_WINDOW_DAYS = 5
+
 @dataclass(frozen=True)
 class FirmsWindow:
     """Identify one bounded product interval processed as an atomic unit."""
@@ -45,7 +48,7 @@ class FirmsWindow:
 
     def __post_init__(self) -> None:
         days = (self.end_date - self.start_date).days + 1
-        if not 1 <= days <= 5:
+        if not 1 <= days <= MAX_WINDOW_DAYS:
             raise ValueError("A FIRMS window must contain between one and five days.")
         if self.mode not in {"incremental", "backfill"}:
             raise ValueError("FIRMS mode must be incremental or backfill.")
@@ -80,17 +83,35 @@ class FirmsPipelineService:
         self._client_factory = client_factory
 
     def resolve_incremental_windows(self, context: TaskExecutionContext) -> list[dict[str, str]]:
-        """Build one overlapping daily window for every configured NRT product."""
+        """Cover the whole schedule period, plus overlap, for every configured NRT product.
+
+        The period ends at `end_date` (the last complete day before the run) and is split into
+        windows of at most five days, the Area API limit; detections replayed by the overlap are
+        deduplicated downstream.
+        """
         conf = context.conf or {}
         end = self._parse_date(conf.get("end_date") or context.logical_date[:10], "end_date")
         overlap = int(conf.get("overlap_days", self.config.firms_overlap_days))
         if not 0 <= overlap <= 4:
             raise FirmsPipelineError("FIRMS overlap_days must be between zero and four.")
-        start = end - timedelta(days=overlap)
+        period = int(conf.get("period_days", self.config.firms_incremental_period_days))
+        if not 1 <= period <= 31:
+            raise FirmsPipelineError("FIRMS period_days must be between one and 31.")
+        start = end - timedelta(days=period - 1 + overlap)
+        spans: list[tuple[date, date]] = []
+        cursor = start
+        while cursor <= end:
+            span_end = min(cursor + timedelta(days=MAX_WINDOW_DAYS - 1), end)
+            spans.append((cursor, span_end))
+            cursor = span_end + timedelta(days=1)
         products = conf.get("products") or self.config.firms_daily_products
         if isinstance(products, str):
             products = [item.strip() for item in products.split(",") if item.strip()]
-        windows = [FirmsWindow(str(product), start, end, "incremental") for product in products]
+        windows = [
+            FirmsWindow(str(product), span_start, span_end, "incremental")
+            for product in products
+            for span_start, span_end in spans
+        ]
         if not windows:
             raise FirmsPipelineError("At least one FIRMS incremental product is required.")
         return [{"window_conf": window.to_conf()} for window in windows]
@@ -214,7 +235,7 @@ class FirmsPipelineService:
         context: TaskExecutionContext,
         results: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """Apply daily multi-source availability semantics to mapped task results."""
+        """Apply multi-source availability semantics to mapped window results."""
         succeeded = [result for result in results if result.get("status") == "SUCCESS"]
         failed = [result for result in results if result.get("status") != "SUCCESS"]
         if not succeeded:
@@ -223,7 +244,7 @@ class FirmsPipelineService:
                 {
                     "status": "FAILED",
                     "successful_sources": [],
-                    "failed_sources": [item.get("source_product") for item in failed],
+                    "failed_sources": sorted({str(item.get("source_product")) for item in failed}),
                     "source_records": 0,
                     "silver_records": 0,
                     "gold_relations": 0,
@@ -233,8 +254,8 @@ class FirmsPipelineService:
             raise FirmsPipelineError("All configured FIRMS incremental sources failed.")
         summary = {
             "status": "DEGRADED" if failed else "SUCCESS",
-            "successful_sources": [item["source_product"] for item in succeeded],
-            "failed_sources": [item["source_product"] for item in failed],
+            "successful_sources": sorted({item["source_product"] for item in succeeded}),
+            "failed_sources": sorted({str(item.get("source_product")) for item in failed}),
             "source_records": sum(int(item.get("source_records", 0)) for item in succeeded),
             "silver_records": sum(int(item.get("silver_records", 0)) for item in succeeded),
             "gold_relations": sum(int(item.get("gold_relations", 0)) for item in succeeded),
@@ -244,7 +265,7 @@ class FirmsPipelineService:
         self._write_run_quality(context, summary)
         if failed:
             LOGGER.warning(
-                "FIRMS daily run completed with unavailable sources: %s",
+                "FIRMS incremental run completed with unavailable windows: %s",
                 ", ".join(summary["failed_sources"]),
             )
         return summary

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from airflow import DAG
@@ -24,10 +25,15 @@ def _context(stage: str, kwargs: dict, window_conf: dict | None = None) -> TaskE
 
 
 def _resolve(**kwargs):
-    """Resolve overlapping windows for all configured operational products."""
-    return FirmsPipelineService().resolve_incremental_windows(
-        _context("resolve_windows", kwargs)
-    )
+    """Resolve the windows of the elapsed schedule period for every operational product.
+
+    The logical date of a weekly run is the start of its interval; the period to collect ends
+    on the last complete day before the run.
+    """
+    context = _context("resolve_windows", kwargs)
+    conf = dict(context.conf or {})
+    conf.setdefault("end_date", (kwargs["data_interval_end"] - timedelta(days=1)).date().isoformat())
+    return FirmsPipelineService().resolve_incremental_windows(replace(context, conf=conf))
 
 
 def _process(window_conf: dict, **kwargs):
@@ -48,9 +54,9 @@ def _summarize(results: list[dict], **kwargs):
 
 with DAG(
     dag_id="DAG_FIRMS",
-    description="Ingestao FIRMS NRT diaria, independente do ciclo cadastral.",
+    description="Ingestão FIRMS NRT semanal, cobrindo os sete dias anteriores à execução.",
     start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
-    schedule="0 6 * * *",  # diária: dado NRT
+    schedule="0 6 * * 1",  # semanal, segunda: cobre os sete dias anteriores
     catchup=False,
     max_active_runs=1,
     max_active_tasks=2,

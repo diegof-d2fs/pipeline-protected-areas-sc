@@ -34,7 +34,7 @@ As amostras confirmam que VIIRS oferece muito mais detecções em SC que MODIS n
 
 ## Produtos e política de publicação aprovados
 
-Usar diariamente duas fontes NRT de 375 m, `VIIRS_NOAA20_NRT` e `VIIRS_NOAA21_NRT`, consultadas separadamente e consolidadas com o produto original preservado. Não iniciar uma dependência nova de SNPP perto da descontinuação. MODIS fica fora da operação diária, mas entra no backfill como série histórica identificada.
+Usar semanalmente duas fontes NRT de 375 m, `VIIRS_NOAA20_NRT` e `VIIRS_NOAA21_NRT`, consultadas separadamente e consolidadas com o produto original preservado. Não iniciar uma dependência nova de SNPP perto da descontinuação. MODIS fica fora da operação diária, mas entra no backfill como série histórica identificada.
 
 VIIRS usa `l`, `n` e `h` na Silver após o recorte exato de SC; Gold e PostGIS recebem somente `h`. MODIS usa a escala original 0–100: valores de 35 a 70, inclusive, ficam na Silver; valores maiores que 70 seguem para Gold e PostGIS; valores menores que 35 ficam somente na Bronze. Não converter categorias VIIRS em percentuais MODIS.
 
@@ -59,7 +59,7 @@ O histórico não será obtido por script manual fora do produto. Uma `DAG_FIRMS
 
 Produtos iniciais do histórico: `VIIRS_SNPP_SP` a partir de 01/01/2015, `VIIRS_NOAA20_SP` a partir de sua disponibilidade e `MODIS_SP` como série complementar. A disponibilidade efetiva por produto/data será consultada e registrada antes de cada lote; `VIIRS_NOAA21_NRT` permanece fonte operacional diária e só entra no histórico quando a API confirmar cobertura recuperável para o período solicitado.
 
-A `DAG_FIRMS` diária é independente: consulta NOAA‑20 e NOAA‑21 NRT para a janela incremental, com sobreposição e reconciliação futura NRT→SP. Ambas reutilizam o mesmo client, contratos Bronze/Silver/Gold, validações e regras de publicação.
+A `DAG_FIRMS` semanal é independente: consulta NOAA‑20 e NOAA‑21 NRT para a janela incremental, com sobreposição e reconciliação futura NRT→SP. Ambas reutilizam o mesmo client, contratos Bronze/Silver/Gold, validações e regras de publicação.
 
 ### Teste ponta a ponta da API
 
@@ -151,7 +151,7 @@ O baseline também cria `firms_backfill_window` para controlar produto, início/
 
 ## Frequência e janelas
 
-A DAG executa diariamente. Cada run usa o `data_interval` do Airflow e uma pequena sobreposição configurável para absorver atraso de publicação, sem duplicar registros. Quando só uma fonte operacional concluir, o resultado é publicado com qualidade `DEGRADED` e alerta; se ambas falharem, a DAG falha. Backfill informa datas explícitas e fragmenta períodos em blocos de até cinco dias.
+A DAG executa semanalmente (segunda, 06:00 UTC). Cada run cobre os sete dias completos do seu `data_interval` (até o dia anterior a `data_interval_end`) mais uma sobreposição configurável, dividida em janelas de até cinco dias — limite da Area API — por produto; detecções repetidas pela sobreposição são deduplicadas. `FIRMS_INCREMENTAL_PERIOD_DAYS` ajusta o período se a agenda mudar. Quando só uma fonte operacional concluir, o resultado é publicado com qualidade `DEGRADED` e alerta; se ambas falharem, a DAG falha. Backfill informa datas explícitas e fragmenta períodos em blocos de até cinco dias.
 
 ## Data quality e observabilidade
 
@@ -171,7 +171,7 @@ A DAG executa diariamente. Cada run usa o `data_interval` do Airflow e uma peque
 
 ## Arquivos implementados
 
-- `airflow/dags/dag_firms.py`: orquestração diária fina e mapeada por produto;
+- `airflow/dags/dag_firms.py`: orquestração semanal fina e mapeada por janela e produto;
 - `airflow/dags/dag_firms_backfill.py`: paginação histórica retomável;
 - `airflow/dags/scripts_python/firms_pipeline.py`: service de domínio compartilhado;
 - `airflow/dags/scripts_python/firms_client.py`: única borda HTTP testável;

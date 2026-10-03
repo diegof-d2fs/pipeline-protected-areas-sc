@@ -28,6 +28,8 @@ class PipelineConfig:
     firms_daily_products: tuple[str, ...] = ("VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT")
     firms_backfill_products: tuple[str, ...] = ("VIIRS_SNPP_SP", "VIIRS_NOAA20_SP", "MODIS_SP")
     firms_overlap_days: int = 1
+    # Dias cobertos por execução incremental; acompanha a agenda da DAG_FIRMS (semanal).
+    firms_incremental_period_days: int = 7
     firms_backfill_batch_size: int = 12
     firms_connect_timeout_seconds: float = 10.0
     firms_read_timeout_seconds: float = 60.0
@@ -89,6 +91,7 @@ class PipelineConfig:
                 if item.strip()
             ),
             firms_overlap_days=int(getenv("FIRMS_OVERLAP_DAYS", "1")),
+            firms_incremental_period_days=int(getenv("FIRMS_INCREMENTAL_PERIOD_DAYS", "7")),
             firms_backfill_batch_size=int(getenv("FIRMS_BACKFILL_BATCH_SIZE", "12")),
             firms_connect_timeout_seconds=float(
                 getenv("FIRMS_CONNECT_TIMEOUT_SECONDS", "10")
