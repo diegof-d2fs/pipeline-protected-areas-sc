@@ -34,7 +34,7 @@ Regras práticas:
 
 O projeto vive em três repositórios Git separados — `pipeline-protected-areas-sc` (este),
 `fast-api-protected-areas-sc` e `frontend-protected-areas-sc` — cada um com seu próprio remoto no
-GitHub (`github.com/diisilva/...`).
+GitHub (`github.com/diegof-d2fs/...`).
 
 ## Baseline e migrations
 
