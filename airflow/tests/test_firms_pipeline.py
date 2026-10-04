@@ -519,3 +519,49 @@ def test_quality_retains_each_window_of_same_product_in_one_run(tmp_path: Path) 
     assert {(item["start_date"], item["end_date"], item["source_detections"]) for item in reports} == {
         ("2001-03-01", "2001-03-05", 7), ("2001-03-06", "2001-03-10", 11),
     }
+
+def test_reference_cache_rechecks_snapshot_and_detects_geometry_change(tmp_path: Path, monkeypatch) -> None:
+    from collections import deque
+    import scripts_python.firms_pipeline as module
+
+    uc = [(1, box(-49.2, -27.2, -49.0, -27.0).wkb)]
+    official = [(10, 1, box(-49.5, -27.5, -48.9, -26.9).wkb)]
+    moved_uc = [(1, box(-48.2, -26.2, -48.0, -26.0).wkb)]
+    responses = deque([uc, official, [], uc, official, [], moved_uc, official, []])
+    reads = []
+
+    class Snapshot:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def cursor(self):
+            return self
+
+        def execute(self, query):
+            reads.append(query)
+
+        def fetchall(self):
+            return responses.popleft()
+
+    monkeypatch.setattr(module.psycopg2, "connect", lambda _: Snapshot())
+    service = FirmsPipelineService(_config(tmp_path))
+    conversions = []
+    original = service._rows_to_gdf
+
+    def convert(rows, columns):
+        conversions.append(columns)
+        return original(rows, columns)
+
+    monkeypatch.setattr(service, "_rows_to_gdf", convert)
+    first = service._load_reference_layers()
+    second = service._load_reference_layers()
+    assert first[0].equals(second[0])
+    assert len(conversions) == 3
+    changed = service._load_reference_layers()
+    assert not first[0].equals(changed[0])
+    assert len(conversions) == 6
+    assert len(reads) == 12  # Three fresh queries plus transaction setup, for every window.
+    assert not responses

@@ -259,3 +259,8 @@ A descoberta com safe mode desativado usa airflow/dags/.airflowignore para exclu
 scripts_python da varredura. Os módulos continuam importáveis e as mesmas 12 DAGs são
 descobertas; o scheduler deixa de analisar 18 bibliotecas como possíveis DAGs.
 Referência: https://airflow.apache.org/docs/apache-airflow/2.10.3/core-concepts/dags.html#airflowignore
+
+O snapshot cadastral é consultado de novo a cada janela, em transação somente leitura
+com REPEATABLE READ. A conversão dos polígonos, o recorte das zonas e a preparação espacial
+são reutilizados apenas quando IDs e SHA-256 das geometrias permanecem iguais. Mudanças
+geométricas ou de áreas ativas invalidam o cache, inclusive sem alteração do número de versão.

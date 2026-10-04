@@ -20,7 +20,7 @@ import geopandas as gpd
 import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
-from shapely import wkb
+from shapely import prepare, wkb
 from shapely.prepared import prep
 from shapely.validation import make_valid
 
@@ -83,6 +83,7 @@ class FirmsPipelineService:
         self.config = config or PipelineConfig.from_env()
         self._client_factory = client_factory
         self._state_boundary_cache: tuple[tuple[str, str], gpd.GeoDataFrame] | None = None
+        self._reference_cache: tuple[tuple, tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]] | None = None
 
     def resolve_incremental_windows(self, context: TaskExecutionContext) -> list[dict[str, str]]:
         """Cover the whole schedule period, plus overlap, for every configured NRT product.
@@ -609,7 +610,7 @@ class FirmsPipelineService:
                 cursor.execute(
                     "SELECT id_uc, ST_AsBinary(geom) FROM uc WHERE situacao = 'ATIVA'"
                 )
-                ucs = self._rows_to_gdf(cursor.fetchall(), ["id_uc", "geometry"])
+                uc_rows = cursor.fetchall()
                 cursor.execute(
                     """
                     SELECT z.id_za_oficial, z.id_uc, ST_AsBinary(z.geom)
@@ -617,9 +618,8 @@ class FirmsPipelineService:
                     WHERE z.fl_ativa = TRUE AND u.situacao = 'ATIVA'
                     """
                 )
-                official = self._rows_to_gdf(
-                    cursor.fetchall(), ["id_za_oficial", "id_uc", "geometry"]
-                )
+                official_rows = cursor.fetchall()
+
                 cursor.execute(
                     """
                     SELECT z.id_buffer_abrangencia, z.id_uc, ST_AsBinary(z.geom)
@@ -627,9 +627,21 @@ class FirmsPipelineService:
                     WHERE z.fl_ativa = TRUE AND u.situacao = 'ATIVA'
                     """
                 )
-                buffer = self._rows_to_gdf(
-                    cursor.fetchall(), ["id_buffer_abrangencia", "id_uc", "geometry"]
-                )
+                buffer_rows = cursor.fetchall()
+        # Read a new consistent DB snapshot for every window. Cache only its conversion
+        # and spatial preparation, identified by IDs and SHA-256 of every geometry.
+        fingerprint = tuple(
+            tuple(sorted(
+                tuple(row[:-1]) + (hashlib.sha256(bytes(row[-1])).hexdigest() if row[-1] is not None else None,)
+                for row in rows
+            ))
+            for rows in (uc_rows, official_rows, buffer_rows)
+        )
+        if self._reference_cache is not None and self._reference_cache[0] == fingerprint:
+            return self._reference_cache[1]
+        ucs = self._rows_to_gdf(uc_rows, ["id_uc", "geometry"])
+        official = self._rows_to_gdf(official_rows, ["id_za_oficial", "id_uc", "geometry"])
+        buffer = self._rows_to_gdf(buffer_rows, ["id_buffer_abrangencia", "id_uc", "geometry"])
         self._validate_reference_layers(ucs, official, buffer)
         uc_geometries = {int(row.id_uc): make_valid(row.geometry) for row in ucs.itertuples()}
         for zones in (official, buffer):
@@ -638,7 +650,12 @@ class FirmsPipelineService:
                     uc_geometries[int(row.id_uc)]
                 )
             zones.drop(zones[zones.geometry.is_empty].index, inplace=True)
-        return ucs, official, buffer
+        for layer in (ucs, official, buffer):
+            for geometry in layer.geometry:
+                prepare(geometry)
+        reference = (ucs, official, buffer)
+        self._reference_cache = (fingerprint, reference)
+        return reference
 
     @staticmethod
     def _validate_reference_layers(
