@@ -92,6 +92,25 @@ UF_NAME_TO_CODE = {
 }
 UF_CODES = set(UF_NAME_TO_CODE.values())
 
+# Nomes de coluna aceitos no arquivo de origem, por coluna canônica. A API publica o mesmo catálogo
+# em GET /api/v1/data-dictionary; tests/test_data_dictionary_contract.py quebra se divergirem.
+UC_SOURCE_COLUMNS: dict[str, list[str]] = {
+    "uc_id": ["uc_id", "id_uc", "id", "gid"],
+    "cd_cnuc": ["cd_cnuc", "cod_cnuc", "cnuc"],
+    "wdpa_pid": ["wdpa_pid", "wdpaid", "wdpa"],
+    "nm_uc": ["nm_uc", "nome_uc", "nm_unid_con", "nome", "name"],
+    "dt_criacao": ["cria_ano", "dt_criacao", "data_criaca", "data_criac", "dt_criacao_ano"],
+    "ds_ato_legal": ["ds_ato_legal", "cria_ato", "ato_legal", "instrumento"],
+    "ds_grupo": ["ds_grupo", "grupo"],
+    "ds_categoria": ["ds_categoria", "categoria", "cat_manejo"],
+    "ds_esfera": ["ds_esfera", "esfera"],
+    "nm_orgao_gestor": ["nm_orgao_gestor", "org_gestor", "orgao_gest", "gestor", "orgao"],
+    "sg_uf": ["sg_uf", "uf"],
+    "area_total_ha": ["area_total_ha", "ha_total", "area_ha", "area_total"],
+    "area_ato_ha": ["area_ato_ha", "ha_ato", "area_ato"],
+    "update_geom": ["update_geom", "update_geo", "updategeometry"],
+}
+
 UC_DB_COLUMNS = [
     "uc_id",
     "cd_cnuc",
@@ -1851,11 +1870,11 @@ class UcsPipelineService(DomainPipelineService):
 
         out = gpd.GeoDataFrame(geometry=src.geometry, crs=src.crs)
 
-        out["uc_id"] = self._get_source_value(src, ["uc_id", "id_uc", "id", "gid"])
-        out["cd_cnuc"] = self._get_source_value(src, ["cd_cnuc", "cod_cnuc", "cnuc"])
-        out["wdpa_pid"] = self._get_source_value(src, ["wdpa_pid", "wdpaid", "wdpa"])
+        out["uc_id"] = self._get_source_value(src, UC_SOURCE_COLUMNS["uc_id"])
+        out["cd_cnuc"] = self._get_source_value(src, UC_SOURCE_COLUMNS["cd_cnuc"])
+        out["wdpa_pid"] = self._get_source_value(src, UC_SOURCE_COLUMNS["wdpa_pid"])
 
-        nm_uc = self._get_source_value(src, ["nm_uc", "nome_uc", "nm_unid_con", "nome", "name"])
+        nm_uc = self._get_source_value(src, UC_SOURCE_COLUMNS["nm_uc"])
         if nm_uc is None:
             raise InputValidationError("Unable to map UCS name column to nm_uc.")
         out["nm_uc"] = nm_uc.astype(str)
@@ -1866,28 +1885,25 @@ class UcsPipelineService(DomainPipelineService):
         else:
             out["dt_criacao"] = None
         out["ds_ato_legal"] = self._compose_ato_legal(src)
-        out["ds_grupo"] = self._get_source_value(src, ["ds_grupo", "grupo"])
-        out["ds_categoria"] = self._get_source_value(src, ["ds_categoria", "categoria", "cat_manejo"])
-        out["ds_esfera"] = self._get_source_value(src, ["ds_esfera", "esfera"])
-        out["nm_orgao_gestor"] = self._get_source_value(
-            src,
-            ["nm_orgao_gestor", "org_gestor", "orgao_gest", "gestor", "orgao"],
-        )
+        out["ds_grupo"] = self._get_source_value(src, UC_SOURCE_COLUMNS["ds_grupo"])
+        out["ds_categoria"] = self._get_source_value(src, UC_SOURCE_COLUMNS["ds_categoria"])
+        out["ds_esfera"] = self._get_source_value(src, UC_SOURCE_COLUMNS["ds_esfera"])
+        out["nm_orgao_gestor"] = self._get_source_value(src, UC_SOURCE_COLUMNS["nm_orgao_gestor"])
 
-        sg_uf = self._get_source_value(src, ["sg_uf", "uf"])
+        sg_uf = self._get_source_value(src, UC_SOURCE_COLUMNS["sg_uf"])
         if sg_uf is not None:
             out["sg_uf"] = sg_uf.apply(self._normalize_uf_value).fillna("SC")
         else:
             out["sg_uf"] = "SC"
 
         out["area_total_ha"] = self._to_numeric_series(
-            self._get_source_value(src, ["area_total_ha", "ha_total", "area_ha", "area_total"])
+            self._get_source_value(src, UC_SOURCE_COLUMNS["area_total_ha"])
         )
         out["area_ato_ha"] = self._to_numeric_series(
-            self._get_source_value(src, ["area_ato_ha", "ha_ato", "area_ato"])
+            self._get_source_value(src, UC_SOURCE_COLUMNS["area_ato_ha"])
         )
 
-        update_geom_source = self._get_source_value(src, ["update_geom", "update_geo", "updategeometry"])
+        update_geom_source = self._get_source_value(src, UC_SOURCE_COLUMNS["update_geom"])
         out["update_geom"] = (
             update_geom_source.apply(self._normalize_update_geom_text)
             if update_geom_source is not None
@@ -2002,8 +2018,8 @@ class UcsPipelineService(DomainPipelineService):
 
     def _resolve_dt_criacao(self, gdf: gpd.GeoDataFrame) -> pd.Series | None:
         """Resolve creation date prioritizing cria_ano and fallback extraction from ato text."""
-        cria_ano = self._get_source_value(gdf, ["cria_ano", "dt_criacao", "data_criaca", "data_criac", "dt_criacao_ano"])
-        cria_ato = self._get_source_value(gdf, ["cria_ato", "ds_ato_legal", "ato_legal", "instrumento"])
+        cria_ano = self._get_source_value(gdf, UC_SOURCE_COLUMNS["dt_criacao"])
+        cria_ato = self._get_source_value(gdf, UC_SOURCE_COLUMNS["ds_ato_legal"])
         if cria_ano is None and cria_ato is None:
             return None
 
@@ -2091,7 +2107,7 @@ class UcsPipelineService(DomainPipelineService):
         return UF_NAME_TO_CODE.get(normalized)
 
     def _compose_ato_legal(self, gdf: gpd.GeoDataFrame) -> pd.Series | None:
-        primary = self._get_source_value(gdf, ["ds_ato_legal", "cria_ato", "ato_legal", "instrumento"])
+        primary = self._get_source_value(gdf, UC_SOURCE_COLUMNS["ds_ato_legal"])
         secondary = self._get_source_value(gdf, ["outro_ato"])
 
         if primary is None and secondary is None:

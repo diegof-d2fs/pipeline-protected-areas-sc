@@ -59,6 +59,18 @@ REJECTION_REASON_DESCRIPTIONS = {
 BUFFER_DISTANCE_M = 3000
 GEOMETRY_EQUALITY_TOLERANCE_DEGREES = 1e-9
 
+# Nomes de coluna aceitos no arquivo de uma ZA oficial, por coluna canônica. A API publica o mesmo
+# catálogo em GET /api/v1/data-dictionary; tests/test_data_dictionary_contract.py quebra se divergirem.
+ZA_SOURCE_COLUMNS: dict[str, list[str]] = {
+    "uc_id": ["uc_id", "id_uc"],
+    "zam_uco_cd": ["zam_uco_cd"],
+    "cd_cnuc": ["cd_cnuc", "cod_cnuc"],
+    "nm_uc": ["nm_uc", "nome_uc", "nome", "label"],
+    "id_za_ofic": ["id_za_ofic", "id"],
+    "ds_fonte": ["ds_fonte", "obs"],
+    "update_geom": ["update_geo", "update_geom"],
+}
+
 
 @dataclass(frozen=True)
 class BranchSelection:
@@ -208,13 +220,15 @@ class ZaBufferPipelineService(DomainPipelineService):
         gdf = self._repair_geometries(gdf)
 
         transformed = pd.DataFrame(index=gdf.index)
-        transformed["uc_id_source"] = self._get_source_value(gdf, ["uc_id", "id_uc"])
-        transformed["source_uc_code"] = self._get_source_value(gdf, ["zam_uco_cd"])
-        transformed["cd_cnuc_source"] = self._get_source_value(gdf, ["cd_cnuc", "cod_cnuc"])
-        transformed["nm_uc_source"] = self._get_source_value(gdf, ["nm_uc", "nome_uc", "nome", "label"])
-        transformed["id_za_oficial_source"] = self._to_int_series(self._get_source_value(gdf, ["id_za_ofic", "id"]))
-        transformed["ds_fonte"] = self._get_source_value(gdf, ["ds_fonte", "obs"]) 
-        source_update_geom = self._get_source_value(gdf, ["update_geo", "update_geom"])
+        transformed["uc_id_source"] = self._get_source_value(gdf, ZA_SOURCE_COLUMNS["uc_id"])
+        transformed["source_uc_code"] = self._get_source_value(gdf, ZA_SOURCE_COLUMNS["zam_uco_cd"])
+        transformed["cd_cnuc_source"] = self._get_source_value(gdf, ZA_SOURCE_COLUMNS["cd_cnuc"])
+        transformed["nm_uc_source"] = self._get_source_value(gdf, ZA_SOURCE_COLUMNS["nm_uc"])
+        transformed["id_za_oficial_source"] = self._to_int_series(
+            self._get_source_value(gdf, ZA_SOURCE_COLUMNS["id_za_ofic"])
+        )
+        transformed["ds_fonte"] = self._get_source_value(gdf, ZA_SOURCE_COLUMNS["ds_fonte"])
+        source_update_geom = self._get_source_value(gdf, ZA_SOURCE_COLUMNS["update_geom"])
         transformed["update_geom"] = (
             source_update_geom.apply(self._normalize_update_geom_text) if source_update_geom is not None else None
         )

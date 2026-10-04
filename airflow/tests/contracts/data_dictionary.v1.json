@@ -1,0 +1,1868 @@
+{
+  "version": "1",
+  "formats": [
+    {
+      "id": "shapefile_zip",
+      "label": "Shapefile compactado (ZIP)",
+      "extensions": [
+        ".zip"
+      ],
+      "required_files": [
+        ".dbf",
+        ".prj",
+        ".shp",
+        ".shx"
+      ],
+      "optional_files": [
+        ".cpg",
+        ".qix",
+        ".qmd",
+        ".sbn",
+        ".sbx",
+        ".xml"
+      ],
+      "crs_rule": "Lido do arquivo .prj, obrigatório.",
+      "encoding": "Lida do .cpg; sem ele, latin1 (com aviso).",
+      "rules": [
+        "Exatamente um .shp por ZIP, com os demais arquivos de mesmo nome.",
+        "Sem outros datasets, links simbólicos ou arquivos protegidos por senha.",
+        "Nomes de coluna do DBF têm no máximo 10 caracteres."
+      ]
+    },
+    {
+      "id": "geojson",
+      "label": "GeoJSON",
+      "extensions": [
+        ".geojson",
+        ".json"
+      ],
+      "required_files": [],
+      "optional_files": [],
+      "crs_rule": "Membro `crs` do arquivo ou `metadata.source_crs`; um dos dois é obrigatório.",
+      "encoding": "UTF-8.",
+      "rules": [
+        "Raiz Feature ou FeatureCollection.",
+        "Atributos em `properties`."
+      ]
+    },
+    {
+      "id": "kml",
+      "label": "KML",
+      "extensions": [
+        ".kml"
+      ],
+      "required_files": [],
+      "optional_files": [],
+      "crs_rule": "Sempre WGS 84 (EPSG:4326), conforme o padrão do formato.",
+      "encoding": "UTF-8.",
+      "rules": [
+        "Placemarks com Point, Polygon ou MultiGeometry.",
+        "`name` e os campos de `ExtendedData` viram atributos."
+      ]
+    }
+  ],
+  "limits": [
+    {
+      "key": "max_upload_bytes",
+      "label": "Tamanho do arquivo",
+      "value": 50.0,
+      "unit": "MB"
+    },
+    {
+      "key": "max_features",
+      "label": "Feições por arquivo",
+      "value": 10000.0,
+      "unit": "feições"
+    },
+    {
+      "key": "max_vertices",
+      "label": "Vértices por arquivo",
+      "value": 1000000.0,
+      "unit": "vértices"
+    },
+    {
+      "key": "max_zip_entries",
+      "label": "Arquivos dentro do ZIP",
+      "value": 64.0,
+      "unit": "arquivos"
+    },
+    {
+      "key": "max_zip_uncompressed_bytes",
+      "label": "ZIP descompactado",
+      "value": 250.0,
+      "unit": "MB"
+    },
+    {
+      "key": "max_zip_compression_ratio",
+      "label": "Razão de compressão por arquivo",
+      "value": 100.0,
+      "unit": ":1"
+    }
+  ],
+  "crs": {
+    "canonical": "EPSG:4674",
+    "metric": "EPSG:31982",
+    "accepted": "Qualquer CRS que o PROJ consiga transformar; os dados são convertidos para o CRS canônico.",
+    "dimension": "2D: coordenadas Z e M são descartadas."
+  },
+  "territory": {
+    "rule": "intersects_bbox",
+    "bbox": [
+      -54.5,
+      -29.8,
+      -47.8,
+      -25.5
+    ],
+    "description": "Cada geometria precisa intersectar o envelope de Santa Catarina (longitude/latitude)."
+  },
+  "geometry_repair": "Geometrias inválidas são recusadas. Com `repair_geometry=true`, a API tenta corrigir e aceita se a área variar no máximo 1%.",
+  "bases": [
+    {
+      "id": "uc-create",
+      "title": "Unidade de Conservação — cadastro",
+      "summary": "Cadastra uma ou várias UCs novas, com limite poligonal ou como ponto.",
+      "endpoint": "POST /api/v1/imports",
+      "domain": "uc",
+      "operation": "create",
+      "geometry_types": [
+        "Point",
+        "Polygon",
+        "MultiPolygon"
+      ],
+      "feature_rule": "Uma ou mais feições; cada feição é uma UC.",
+      "columns": [
+        {
+          "name": "nm_uc",
+          "type": "texto",
+          "requirement": "obrigatorio",
+          "aliases": [
+            "nome_uc",
+            "nm_unid_con",
+            "nome",
+            "name"
+          ],
+          "example": "Parque Estadual da Serra do Tabuleiro",
+          "description": "Nome oficial da UC. Pode vir do arquivo ou de `metadata.name`, que tem prioridade.",
+          "destination": "uc.nm_uc"
+        },
+        {
+          "name": "cd_cnuc",
+          "type": "texto",
+          "requirement": "identificador_forte",
+          "aliases": [
+            "cod_cnuc",
+            "cnuc"
+          ],
+          "example": "0000.42.0001",
+          "description": "Código da UC no Cadastro Nacional de Unidades de Conservação (CNUC/MMA), como publicado.",
+          "destination": "uc.cd_cnuc"
+        },
+        {
+          "name": "wdpa_pid",
+          "type": "texto",
+          "requirement": "identificador_forte",
+          "aliases": [
+            "wdpaid",
+            "wdpa"
+          ],
+          "example": "555555",
+          "description": "Identificador da área na World Database on Protected Areas (Protected Planet).",
+          "destination": "uc.wdpa_pid"
+        },
+        {
+          "name": "uc_id",
+          "type": "texto",
+          "requirement": "identificador_forte",
+          "aliases": [
+            "id_uc",
+            "id",
+            "gid"
+          ],
+          "example": "SC-UC-0001",
+          "description": "Identificador oficial da UC na fonte. Só `uc_id` e `id_uc` contam como identificador forte; `id` e `gid` são lidos pelo pipeline, mas não identificam a UC na checagem de duplicidade.",
+          "destination": "uc.uc_id"
+        },
+        {
+          "name": "dt_criacao",
+          "type": "data",
+          "requirement": "opcional",
+          "aliases": [
+            "cria_ano",
+            "data_criaca",
+            "data_criac",
+            "dt_criacao_ano"
+          ],
+          "example": "1975-11-01",
+          "description": "Data de criação em AAAA-MM-DD, DD/MM/AAAA ou só o ano (AAAA). Sem ela, o pipeline tenta extrair a data do texto do ato legal.",
+          "destination": "uc.dt_criacao"
+        },
+        {
+          "name": "ds_ato_legal",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "cria_ato",
+            "ato_legal",
+            "instrumento"
+          ],
+          "example": "Decreto Estadual nº 1.260, de 01/11/1975",
+          "description": "Ato legal de criação. Uma coluna `outro_ato` é anexada ao texto quando existir.",
+          "destination": "uc.ds_ato_legal"
+        },
+        {
+          "name": "ds_grupo",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "grupo"
+          ],
+          "example": "Proteção Integral",
+          "description": "Grupo do SNUC: Proteção Integral ou Uso Sustentável.",
+          "destination": "uc.ds_grupo"
+        },
+        {
+          "name": "ds_categoria",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "categoria",
+            "cat_manejo"
+          ],
+          "example": "Parque",
+          "description": "Categoria de manejo do SNUC (Parque, Reserva Biológica, APA…).",
+          "destination": "uc.ds_categoria"
+        },
+        {
+          "name": "ds_esfera",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "esfera"
+          ],
+          "example": "Estadual",
+          "description": "Esfera administrativa: Federal, Estadual ou Municipal.",
+          "destination": "uc.ds_esfera"
+        },
+        {
+          "name": "nm_orgao_gestor",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "org_gestor",
+            "orgao_gest",
+            "gestor",
+            "orgao"
+          ],
+          "example": "IMA/SC",
+          "description": "Órgão responsável pela gestão.",
+          "destination": "uc.nm_orgao_gestor"
+        },
+        {
+          "name": "sg_uf",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "uf"
+          ],
+          "example": "SC",
+          "description": "Sigla da UF com duas letras; o nome por extenso também é aceito. Padrão: SC.",
+          "destination": "uc.sg_uf"
+        },
+        {
+          "name": "area_total_ha",
+          "type": "numero_decimal",
+          "requirement": "opcional",
+          "aliases": [
+            "ha_total",
+            "area_ha",
+            "area_total"
+          ],
+          "example": "87405.00",
+          "description": "Área total declarada pela fonte, em hectares, com ponto decimal.",
+          "destination": "uc.area_total_ha"
+        },
+        {
+          "name": "area_ato_ha",
+          "type": "numero_decimal",
+          "requirement": "opcional",
+          "aliases": [
+            "ha_ato",
+            "area_ato"
+          ],
+          "example": "87405.00",
+          "description": "Área informada no ato legal, em hectares.",
+          "destination": "uc.area_ato_ha"
+        },
+        {
+          "name": "update_geom",
+          "type": "booleano",
+          "requirement": "opcional",
+          "aliases": [
+            "update_geo",
+            "updategeometry"
+          ],
+          "example": "sim",
+          "description": "Indica se a fonte marcou o limite como atualizado (sim/não, true/false, 1/0).",
+          "destination": "uc.update_geom"
+        }
+      ],
+      "metadata_fields": [
+        {
+          "name": "source",
+          "type": "texto",
+          "required": true,
+          "max_length": 255,
+          "minimum": null,
+          "description": "Órgão, publicação ou sistema de onde o arquivo foi obtido."
+        },
+        {
+          "name": "name",
+          "type": "texto",
+          "required": false,
+          "max_length": 255,
+          "minimum": null,
+          "description": "Nome da UC; tem prioridade sobre o nome lido do arquivo."
+        },
+        {
+          "name": "official_identifier",
+          "type": "texto",
+          "required": false,
+          "max_length": 100,
+          "minimum": null,
+          "description": "Identificador oficial da UC na fonte (equivale a `uc_id`)."
+        },
+        {
+          "name": "cd_cnuc",
+          "type": "texto",
+          "required": false,
+          "max_length": 50,
+          "minimum": null,
+          "description": "Código CNUC da UC."
+        },
+        {
+          "name": "wdpa_pid",
+          "type": "texto",
+          "required": false,
+          "max_length": 50,
+          "minimum": null,
+          "description": "Identificador WDPA da UC."
+        },
+        {
+          "name": "legal_act_date",
+          "type": "data",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "Data do ato legal que fundamenta o envio (AAAA-MM-DD)."
+        },
+        {
+          "name": "actor",
+          "type": "texto",
+          "required": false,
+          "max_length": 255,
+          "minimum": null,
+          "description": "Responsável pelo envio, quando diferente do usuário logado."
+        },
+        {
+          "name": "source_crs",
+          "type": "texto",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "CRS de um GeoJSON sem membro `crs`, por exemplo `EPSG:4674`."
+        }
+      ],
+      "metadata_example": {
+        "source": "IMA/SC — portal de dados abertos",
+        "source_crs": "EPSG:4674"
+      },
+      "rules": [
+        "Com várias feições, cada uma precisa de nome e de identificador forte próprios (`uc_id`, `cd_cnuc` ou `wdpa_pid`), sem repetição de identidade ou geometria no lote.",
+        "Uma UC enviada como ponto recebe o Buffer de Abrangência de 3.000 m calculado pelo pipeline.",
+        "Por padrão, uma UC já cadastrada rejeita o lote inteiro (`duplicate_policy=reject_batch`); `skip_duplicates` publica só as inéditas.",
+        "UC com ZA oficial própria é cadastrada no lote UC + ZA."
+      ],
+      "example_geojson": {
+        "type": "FeatureCollection",
+        "crs": {
+          "type": "name",
+          "properties": {
+            "name": "EPSG:4674"
+          }
+        },
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "nm_uc": "UC de Exemplo",
+              "cd_cnuc": "0000.42.9999",
+              "ds_categoria": "Parque",
+              "ds_grupo": "Proteção Integral",
+              "ds_esfera": "Estadual",
+              "nm_orgao_gestor": "IMA/SC",
+              "dt_criacao": "2001-06-05",
+              "ds_ato_legal": "Decreto Estadual de exemplo",
+              "area_total_ha": 1234.5
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -48.6,
+                    -27.7
+                  ],
+                  [
+                    -48.55,
+                    -27.7
+                  ],
+                  [
+                    -48.55,
+                    -27.65
+                  ],
+                  [
+                    -48.6,
+                    -27.65
+                  ],
+                  [
+                    -48.6,
+                    -27.7
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "uc-update",
+      "title": "Unidade de Conservação — atualização de geometria",
+      "summary": "Substitui o limite vigente de uma UC existente, preservando a versão anterior.",
+      "endpoint": "POST /api/v1/imports",
+      "domain": "uc",
+      "operation": "update",
+      "geometry_types": [
+        "Point",
+        "Polygon",
+        "MultiPolygon"
+      ],
+      "feature_rule": "Exatamente uma feição, com a geometria completa da UC.",
+      "columns": [
+        {
+          "name": "nm_uc",
+          "type": "texto",
+          "requirement": "obrigatorio",
+          "aliases": [
+            "nome_uc",
+            "nm_unid_con",
+            "nome",
+            "name"
+          ],
+          "example": "Parque Estadual da Serra do Tabuleiro",
+          "description": "Nome oficial da UC. Pode vir do arquivo ou de `metadata.name`, que tem prioridade.",
+          "destination": "uc.nm_uc"
+        },
+        {
+          "name": "cd_cnuc",
+          "type": "texto",
+          "requirement": "identificador_forte",
+          "aliases": [
+            "cod_cnuc",
+            "cnuc"
+          ],
+          "example": "0000.42.0001",
+          "description": "Código da UC no Cadastro Nacional de Unidades de Conservação (CNUC/MMA), como publicado.",
+          "destination": "uc.cd_cnuc"
+        },
+        {
+          "name": "wdpa_pid",
+          "type": "texto",
+          "requirement": "identificador_forte",
+          "aliases": [
+            "wdpaid",
+            "wdpa"
+          ],
+          "example": "555555",
+          "description": "Identificador da área na World Database on Protected Areas (Protected Planet).",
+          "destination": "uc.wdpa_pid"
+        },
+        {
+          "name": "uc_id",
+          "type": "texto",
+          "requirement": "identificador_forte",
+          "aliases": [
+            "id_uc",
+            "id",
+            "gid"
+          ],
+          "example": "SC-UC-0001",
+          "description": "Identificador oficial da UC na fonte. Só `uc_id` e `id_uc` contam como identificador forte; `id` e `gid` são lidos pelo pipeline, mas não identificam a UC na checagem de duplicidade.",
+          "destination": "uc.uc_id"
+        },
+        {
+          "name": "dt_criacao",
+          "type": "data",
+          "requirement": "opcional",
+          "aliases": [
+            "cria_ano",
+            "data_criaca",
+            "data_criac",
+            "dt_criacao_ano"
+          ],
+          "example": "1975-11-01",
+          "description": "Data de criação em AAAA-MM-DD, DD/MM/AAAA ou só o ano (AAAA). Sem ela, o pipeline tenta extrair a data do texto do ato legal.",
+          "destination": "uc.dt_criacao"
+        },
+        {
+          "name": "ds_ato_legal",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "cria_ato",
+            "ato_legal",
+            "instrumento"
+          ],
+          "example": "Decreto Estadual nº 1.260, de 01/11/1975",
+          "description": "Ato legal de criação. Uma coluna `outro_ato` é anexada ao texto quando existir.",
+          "destination": "uc.ds_ato_legal"
+        },
+        {
+          "name": "ds_grupo",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "grupo"
+          ],
+          "example": "Proteção Integral",
+          "description": "Grupo do SNUC: Proteção Integral ou Uso Sustentável.",
+          "destination": "uc.ds_grupo"
+        },
+        {
+          "name": "ds_categoria",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "categoria",
+            "cat_manejo"
+          ],
+          "example": "Parque",
+          "description": "Categoria de manejo do SNUC (Parque, Reserva Biológica, APA…).",
+          "destination": "uc.ds_categoria"
+        },
+        {
+          "name": "ds_esfera",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "esfera"
+          ],
+          "example": "Estadual",
+          "description": "Esfera administrativa: Federal, Estadual ou Municipal.",
+          "destination": "uc.ds_esfera"
+        },
+        {
+          "name": "nm_orgao_gestor",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "org_gestor",
+            "orgao_gest",
+            "gestor",
+            "orgao"
+          ],
+          "example": "IMA/SC",
+          "description": "Órgão responsável pela gestão.",
+          "destination": "uc.nm_orgao_gestor"
+        },
+        {
+          "name": "sg_uf",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "uf"
+          ],
+          "example": "SC",
+          "description": "Sigla da UF com duas letras; o nome por extenso também é aceito. Padrão: SC.",
+          "destination": "uc.sg_uf"
+        },
+        {
+          "name": "area_total_ha",
+          "type": "numero_decimal",
+          "requirement": "opcional",
+          "aliases": [
+            "ha_total",
+            "area_ha",
+            "area_total"
+          ],
+          "example": "87405.00",
+          "description": "Área total declarada pela fonte, em hectares, com ponto decimal.",
+          "destination": "uc.area_total_ha"
+        },
+        {
+          "name": "area_ato_ha",
+          "type": "numero_decimal",
+          "requirement": "opcional",
+          "aliases": [
+            "ha_ato",
+            "area_ato"
+          ],
+          "example": "87405.00",
+          "description": "Área informada no ato legal, em hectares.",
+          "destination": "uc.area_ato_ha"
+        },
+        {
+          "name": "update_geom",
+          "type": "booleano",
+          "requirement": "opcional",
+          "aliases": [
+            "update_geo",
+            "updategeometry"
+          ],
+          "example": "sim",
+          "description": "Indica se a fonte marcou o limite como atualizado (sim/não, true/false, 1/0).",
+          "destination": "uc.update_geom"
+        }
+      ],
+      "metadata_fields": [
+        {
+          "name": "source",
+          "type": "texto",
+          "required": true,
+          "max_length": 255,
+          "minimum": null,
+          "description": "Órgão, publicação ou sistema de onde o arquivo foi obtido."
+        },
+        {
+          "name": "reason",
+          "type": "texto",
+          "required": true,
+          "max_length": 1000,
+          "minimum": null,
+          "description": "Justificativa auditável da mudança."
+        },
+        {
+          "name": "expected_version",
+          "type": "inteiro",
+          "required": true,
+          "max_length": null,
+          "minimum": 1,
+          "description": "Versão da geometria vigente observada antes do envio (trava otimista)."
+        },
+        {
+          "name": "official_identifier",
+          "type": "texto",
+          "required": false,
+          "max_length": 100,
+          "minimum": null,
+          "description": "Identificador oficial da UC na fonte (equivale a `uc_id`)."
+        },
+        {
+          "name": "cd_cnuc",
+          "type": "texto",
+          "required": false,
+          "max_length": 50,
+          "minimum": null,
+          "description": "Código CNUC da UC."
+        },
+        {
+          "name": "wdpa_pid",
+          "type": "texto",
+          "required": false,
+          "max_length": 50,
+          "minimum": null,
+          "description": "Identificador WDPA da UC."
+        },
+        {
+          "name": "legal_act_date",
+          "type": "data",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "Data do ato legal que fundamenta o envio (AAAA-MM-DD)."
+        },
+        {
+          "name": "actor",
+          "type": "texto",
+          "required": false,
+          "max_length": 255,
+          "minimum": null,
+          "description": "Responsável pelo envio, quando diferente do usuário logado."
+        },
+        {
+          "name": "source_crs",
+          "type": "texto",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "CRS de um GeoJSON sem membro `crs`, por exemplo `EPSG:4674`."
+        }
+      ],
+      "metadata_example": {
+        "source": "Decreto de alteração de limites",
+        "reason": "Ajuste do limite conforme novo memorial descritivo",
+        "expected_version": 1,
+        "cd_cnuc": "0000.42.9999"
+      },
+      "rules": [
+        "Informe ao menos um identificador forte em metadata: `official_identifier`, `cd_cnuc` ou `wdpa_pid`.",
+        "`expected_version` deve ser a versão vigente; se outra pessoa alterou a UC antes, o envio é recusado com conflito de versão.",
+        "Todo o histórico temático é recalculado para a geometria nova."
+      ],
+      "example_geojson": {
+        "type": "FeatureCollection",
+        "crs": {
+          "type": "name",
+          "properties": {
+            "name": "EPSG:4674"
+          }
+        },
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "nm_uc": "UC de Exemplo",
+              "cd_cnuc": "0000.42.9999"
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -48.6,
+                    -27.7
+                  ],
+                  [
+                    -48.55,
+                    -27.7
+                  ],
+                  [
+                    -48.55,
+                    -27.65
+                  ],
+                  [
+                    -48.6,
+                    -27.65
+                  ],
+                  [
+                    -48.6,
+                    -27.7
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "uc-replace-point",
+      "title": "Unidade de Conservação — substituição de ponto por polígono",
+      "summary": "Troca uma UC cadastrada como ponto pelo seu limite poligonal oficial.",
+      "endpoint": "POST /api/v1/imports",
+      "domain": "uc",
+      "operation": "replace_point",
+      "geometry_types": [
+        "Polygon",
+        "MultiPolygon"
+      ],
+      "feature_rule": "Exatamente uma feição poligonal.",
+      "columns": [
+        {
+          "name": "nm_uc",
+          "type": "texto",
+          "requirement": "obrigatorio",
+          "aliases": [
+            "nome_uc",
+            "nm_unid_con",
+            "nome",
+            "name"
+          ],
+          "example": "Parque Estadual da Serra do Tabuleiro",
+          "description": "Nome oficial da UC. Pode vir do arquivo ou de `metadata.name`, que tem prioridade.",
+          "destination": "uc.nm_uc"
+        },
+        {
+          "name": "cd_cnuc",
+          "type": "texto",
+          "requirement": "identificador_forte",
+          "aliases": [
+            "cod_cnuc",
+            "cnuc"
+          ],
+          "example": "0000.42.0001",
+          "description": "Código da UC no Cadastro Nacional de Unidades de Conservação (CNUC/MMA), como publicado.",
+          "destination": "uc.cd_cnuc"
+        },
+        {
+          "name": "wdpa_pid",
+          "type": "texto",
+          "requirement": "identificador_forte",
+          "aliases": [
+            "wdpaid",
+            "wdpa"
+          ],
+          "example": "555555",
+          "description": "Identificador da área na World Database on Protected Areas (Protected Planet).",
+          "destination": "uc.wdpa_pid"
+        },
+        {
+          "name": "uc_id",
+          "type": "texto",
+          "requirement": "identificador_forte",
+          "aliases": [
+            "id_uc",
+            "id",
+            "gid"
+          ],
+          "example": "SC-UC-0001",
+          "description": "Identificador oficial da UC na fonte. Só `uc_id` e `id_uc` contam como identificador forte; `id` e `gid` são lidos pelo pipeline, mas não identificam a UC na checagem de duplicidade.",
+          "destination": "uc.uc_id"
+        },
+        {
+          "name": "dt_criacao",
+          "type": "data",
+          "requirement": "opcional",
+          "aliases": [
+            "cria_ano",
+            "data_criaca",
+            "data_criac",
+            "dt_criacao_ano"
+          ],
+          "example": "1975-11-01",
+          "description": "Data de criação em AAAA-MM-DD, DD/MM/AAAA ou só o ano (AAAA). Sem ela, o pipeline tenta extrair a data do texto do ato legal.",
+          "destination": "uc.dt_criacao"
+        },
+        {
+          "name": "ds_ato_legal",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "cria_ato",
+            "ato_legal",
+            "instrumento"
+          ],
+          "example": "Decreto Estadual nº 1.260, de 01/11/1975",
+          "description": "Ato legal de criação. Uma coluna `outro_ato` é anexada ao texto quando existir.",
+          "destination": "uc.ds_ato_legal"
+        },
+        {
+          "name": "ds_grupo",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "grupo"
+          ],
+          "example": "Proteção Integral",
+          "description": "Grupo do SNUC: Proteção Integral ou Uso Sustentável.",
+          "destination": "uc.ds_grupo"
+        },
+        {
+          "name": "ds_categoria",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "categoria",
+            "cat_manejo"
+          ],
+          "example": "Parque",
+          "description": "Categoria de manejo do SNUC (Parque, Reserva Biológica, APA…).",
+          "destination": "uc.ds_categoria"
+        },
+        {
+          "name": "ds_esfera",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "esfera"
+          ],
+          "example": "Estadual",
+          "description": "Esfera administrativa: Federal, Estadual ou Municipal.",
+          "destination": "uc.ds_esfera"
+        },
+        {
+          "name": "nm_orgao_gestor",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "org_gestor",
+            "orgao_gest",
+            "gestor",
+            "orgao"
+          ],
+          "example": "IMA/SC",
+          "description": "Órgão responsável pela gestão.",
+          "destination": "uc.nm_orgao_gestor"
+        },
+        {
+          "name": "sg_uf",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "uf"
+          ],
+          "example": "SC",
+          "description": "Sigla da UF com duas letras; o nome por extenso também é aceito. Padrão: SC.",
+          "destination": "uc.sg_uf"
+        },
+        {
+          "name": "area_total_ha",
+          "type": "numero_decimal",
+          "requirement": "opcional",
+          "aliases": [
+            "ha_total",
+            "area_ha",
+            "area_total"
+          ],
+          "example": "87405.00",
+          "description": "Área total declarada pela fonte, em hectares, com ponto decimal.",
+          "destination": "uc.area_total_ha"
+        },
+        {
+          "name": "area_ato_ha",
+          "type": "numero_decimal",
+          "requirement": "opcional",
+          "aliases": [
+            "ha_ato",
+            "area_ato"
+          ],
+          "example": "87405.00",
+          "description": "Área informada no ato legal, em hectares.",
+          "destination": "uc.area_ato_ha"
+        },
+        {
+          "name": "update_geom",
+          "type": "booleano",
+          "requirement": "opcional",
+          "aliases": [
+            "update_geo",
+            "updategeometry"
+          ],
+          "example": "sim",
+          "description": "Indica se a fonte marcou o limite como atualizado (sim/não, true/false, 1/0).",
+          "destination": "uc.update_geom"
+        }
+      ],
+      "metadata_fields": [
+        {
+          "name": "source",
+          "type": "texto",
+          "required": true,
+          "max_length": 255,
+          "minimum": null,
+          "description": "Órgão, publicação ou sistema de onde o arquivo foi obtido."
+        },
+        {
+          "name": "reason",
+          "type": "texto",
+          "required": true,
+          "max_length": 1000,
+          "minimum": null,
+          "description": "Justificativa auditável da mudança."
+        },
+        {
+          "name": "expected_version",
+          "type": "inteiro",
+          "required": true,
+          "max_length": null,
+          "minimum": 1,
+          "description": "Versão da geometria vigente observada antes do envio (trava otimista)."
+        },
+        {
+          "name": "official_identifier",
+          "type": "texto",
+          "required": false,
+          "max_length": 100,
+          "minimum": null,
+          "description": "Identificador oficial da UC na fonte (equivale a `uc_id`)."
+        },
+        {
+          "name": "cd_cnuc",
+          "type": "texto",
+          "required": false,
+          "max_length": 50,
+          "minimum": null,
+          "description": "Código CNUC da UC."
+        },
+        {
+          "name": "wdpa_pid",
+          "type": "texto",
+          "required": false,
+          "max_length": 50,
+          "minimum": null,
+          "description": "Identificador WDPA da UC."
+        },
+        {
+          "name": "legal_act_date",
+          "type": "data",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "Data do ato legal que fundamenta o envio (AAAA-MM-DD)."
+        },
+        {
+          "name": "actor",
+          "type": "texto",
+          "required": false,
+          "max_length": 255,
+          "minimum": null,
+          "description": "Responsável pelo envio, quando diferente do usuário logado."
+        },
+        {
+          "name": "source_crs",
+          "type": "texto",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "CRS de um GeoJSON sem membro `crs`, por exemplo `EPSG:4674`."
+        }
+      ],
+      "metadata_example": {
+        "source": "Memorial descritivo oficial",
+        "reason": "Limite poligonal publicado",
+        "expected_version": 1,
+        "cd_cnuc": "0000.42.9999"
+      },
+      "rules": [
+        "Informe ao menos um identificador forte em metadata: `official_identifier`, `cd_cnuc` ou `wdpa_pid`.",
+        "A UC-alvo precisa estar cadastrada como ponto.",
+        "O Buffer de Abrangência derivado do ponto é recalculado sobre o polígono."
+      ],
+      "example_geojson": {
+        "type": "FeatureCollection",
+        "crs": {
+          "type": "name",
+          "properties": {
+            "name": "EPSG:4674"
+          }
+        },
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "nm_uc": "UC de Exemplo",
+              "cd_cnuc": "0000.42.9999"
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -48.6,
+                    -27.7
+                  ],
+                  [
+                    -48.55,
+                    -27.7
+                  ],
+                  [
+                    -48.55,
+                    -27.65
+                  ],
+                  [
+                    -48.6,
+                    -27.65
+                  ],
+                  [
+                    -48.6,
+                    -27.7
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "uc-extinguish",
+      "title": "Unidade de Conservação — extinção",
+      "summary": "Marca uma UC como extinta e encerra sua zona ativa. Não há arquivo: a API usa o cadastro vigente.",
+      "endpoint": "POST /api/v1/ucs/{uc_id}/extinguish",
+      "domain": "uc",
+      "operation": "extinguish",
+      "geometry_types": [],
+      "feature_rule": "Sem arquivo.",
+      "columns": [],
+      "metadata_fields": [
+        {
+          "name": "source",
+          "type": "texto",
+          "required": true,
+          "max_length": 255,
+          "minimum": null,
+          "description": "Órgão, publicação ou sistema de onde o arquivo foi obtido."
+        },
+        {
+          "name": "reason",
+          "type": "texto",
+          "required": true,
+          "max_length": 1000,
+          "minimum": null,
+          "description": "Justificativa auditável da mudança."
+        },
+        {
+          "name": "expected_version",
+          "type": "inteiro",
+          "required": true,
+          "max_length": null,
+          "minimum": 1,
+          "description": "Versão da geometria vigente observada antes do envio (trava otimista)."
+        }
+      ],
+      "metadata_example": {
+        "source": "Lei de desafetação",
+        "reason": "UC extinta por lei",
+        "expected_version": 1
+      },
+      "rules": [
+        "A UC continua no histórico; só deixa de ser vigente.",
+        "Uma UC já extinta recusa o pedido."
+      ],
+      "example_geojson": null
+    },
+    {
+      "id": "uc-za-batch",
+      "title": "UC com ZA oficial — lote atômico",
+      "summary": "Cadastra uma UC nova junto com sua Zona de Amortecimento oficial, numa única publicação.",
+      "endpoint": "POST /api/v1/import-batches",
+      "domain": null,
+      "operation": null,
+      "geometry_types": [
+        "Polygon",
+        "MultiPolygon"
+      ],
+      "feature_rule": "Dois envios validados antes: a UC (`uc/create`) e a ZA (`za_oficial/create`), uma feição cada.",
+      "columns": [
+        {
+          "name": "nm_uc",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "nome_uc",
+            "nome",
+            "label"
+          ],
+          "example": "Parque Estadual da Serra do Tabuleiro",
+          "description": "Nome da UC dona da zona, só para conferência. O vínculo vem de `metadata.uc_identifier`.",
+          "destination": "za_oficial.nm_uc_source"
+        },
+        {
+          "name": "cd_cnuc",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "cod_cnuc"
+          ],
+          "example": "0000.42.0001",
+          "description": "Código CNUC da UC dona da zona, para conferência.",
+          "destination": "za_oficial.cd_cnuc_source"
+        },
+        {
+          "name": "uc_id",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "id_uc"
+          ],
+          "example": "SC-UC-0001",
+          "description": "Identificador da UC na fonte da zona.",
+          "destination": "za_oficial.uc_id_source"
+        },
+        {
+          "name": "zam_uco_cd",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [],
+          "example": "1234",
+          "description": "Código da UC usado pela fonte das zonas de amortecimento.",
+          "destination": "za_oficial.source_uc_code"
+        },
+        {
+          "name": "id_za_ofic",
+          "type": "inteiro",
+          "requirement": "opcional",
+          "aliases": [
+            "id"
+          ],
+          "example": "17",
+          "description": "Identificador numérico da zona na fonte.",
+          "destination": "za_oficial.id_za_oficial_source"
+        },
+        {
+          "name": "ds_fonte",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "obs"
+          ],
+          "example": "Plano de Manejo, 2018",
+          "description": "Fonte ou observação sobre a delimitação.",
+          "destination": "za_oficial.ds_fonte"
+        },
+        {
+          "name": "update_geom",
+          "type": "booleano",
+          "requirement": "opcional",
+          "aliases": [
+            "update_geo"
+          ],
+          "example": "sim",
+          "description": "Indica se a fonte marcou o limite como atualizado.",
+          "destination": "za_oficial.update_geom"
+        }
+      ],
+      "metadata_fields": [
+        {
+          "name": "source",
+          "type": "texto",
+          "required": true,
+          "max_length": 255,
+          "minimum": null,
+          "description": "Órgão, publicação ou sistema de onde o arquivo foi obtido."
+        },
+        {
+          "name": "uc_identifier",
+          "type": "texto",
+          "required": true,
+          "max_length": 100,
+          "minimum": null,
+          "description": "Identificador da UC dona da zona (CNUC, WDPA ou identificador oficial)."
+        },
+        {
+          "name": "valid_from",
+          "type": "data",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "Início da vigência oficial da zona (AAAA-MM-DD)."
+        },
+        {
+          "name": "legal_act_date",
+          "type": "data",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "Data do ato legal que fundamenta o envio (AAAA-MM-DD)."
+        },
+        {
+          "name": "source_crs",
+          "type": "texto",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "CRS de um GeoJSON sem membro `crs`, por exemplo `EPSG:4674`."
+        }
+      ],
+      "metadata_example": {
+        "source": "Plano de Manejo",
+        "uc_identifier": "0000.42.9999",
+        "valid_from": "2018-03-01"
+      },
+      "rules": [
+        "A ZA oficial não é publicada sozinha: envie a UC e a ZA em `/api/v1/imports` e agrupe-as no lote.",
+        "A ZA precisa ser polígono; colunas do arquivo da ZA são opcionais e servem para conferência.",
+        "As colunas da UC seguem a base \"Unidade de Conservação — cadastro\"."
+      ],
+      "example_geojson": {
+        "type": "FeatureCollection",
+        "crs": {
+          "type": "name",
+          "properties": {
+            "name": "EPSG:4674"
+          }
+        },
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "nm_uc": "UC de Exemplo",
+              "ds_fonte": "Plano de Manejo"
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -48.63,
+                    -27.73
+                  ],
+                  [
+                    -48.52,
+                    -27.73
+                  ],
+                  [
+                    -48.52,
+                    -27.62
+                  ],
+                  [
+                    -48.63,
+                    -27.62
+                  ],
+                  [
+                    -48.63,
+                    -27.73
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "za-replace-buffer",
+      "title": "ZA oficial — substituição do Buffer de Abrangência",
+      "summary": "Substitui o Buffer de Abrangência de uma UC existente pela ZA oficial publicada.",
+      "endpoint": "POST /api/v1/imports",
+      "domain": "za_oficial",
+      "operation": "replace_buffer_abrangencia",
+      "geometry_types": [
+        "Polygon",
+        "MultiPolygon"
+      ],
+      "feature_rule": "Exatamente uma feição poligonal.",
+      "columns": [
+        {
+          "name": "nm_uc",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "nome_uc",
+            "nome",
+            "label"
+          ],
+          "example": "Parque Estadual da Serra do Tabuleiro",
+          "description": "Nome da UC dona da zona, só para conferência. O vínculo vem de `metadata.uc_identifier`.",
+          "destination": "za_oficial.nm_uc_source"
+        },
+        {
+          "name": "cd_cnuc",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "cod_cnuc"
+          ],
+          "example": "0000.42.0001",
+          "description": "Código CNUC da UC dona da zona, para conferência.",
+          "destination": "za_oficial.cd_cnuc_source"
+        },
+        {
+          "name": "uc_id",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "id_uc"
+          ],
+          "example": "SC-UC-0001",
+          "description": "Identificador da UC na fonte da zona.",
+          "destination": "za_oficial.uc_id_source"
+        },
+        {
+          "name": "zam_uco_cd",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [],
+          "example": "1234",
+          "description": "Código da UC usado pela fonte das zonas de amortecimento.",
+          "destination": "za_oficial.source_uc_code"
+        },
+        {
+          "name": "id_za_ofic",
+          "type": "inteiro",
+          "requirement": "opcional",
+          "aliases": [
+            "id"
+          ],
+          "example": "17",
+          "description": "Identificador numérico da zona na fonte.",
+          "destination": "za_oficial.id_za_oficial_source"
+        },
+        {
+          "name": "ds_fonte",
+          "type": "texto",
+          "requirement": "opcional",
+          "aliases": [
+            "obs"
+          ],
+          "example": "Plano de Manejo, 2018",
+          "description": "Fonte ou observação sobre a delimitação.",
+          "destination": "za_oficial.ds_fonte"
+        },
+        {
+          "name": "update_geom",
+          "type": "booleano",
+          "requirement": "opcional",
+          "aliases": [
+            "update_geo"
+          ],
+          "example": "sim",
+          "description": "Indica se a fonte marcou o limite como atualizado.",
+          "destination": "za_oficial.update_geom"
+        }
+      ],
+      "metadata_fields": [
+        {
+          "name": "source",
+          "type": "texto",
+          "required": true,
+          "max_length": 255,
+          "minimum": null,
+          "description": "Órgão, publicação ou sistema de onde o arquivo foi obtido."
+        },
+        {
+          "name": "uc_identifier",
+          "type": "texto",
+          "required": true,
+          "max_length": 100,
+          "minimum": null,
+          "description": "Identificador da UC dona da zona (CNUC, WDPA ou identificador oficial)."
+        },
+        {
+          "name": "reason",
+          "type": "texto",
+          "required": true,
+          "max_length": 1000,
+          "minimum": null,
+          "description": "Justificativa auditável da mudança."
+        },
+        {
+          "name": "valid_from",
+          "type": "data",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "Início da vigência oficial da zona (AAAA-MM-DD)."
+        },
+        {
+          "name": "legal_act_date",
+          "type": "data",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "Data do ato legal que fundamenta o envio (AAAA-MM-DD)."
+        },
+        {
+          "name": "source_crs",
+          "type": "texto",
+          "required": false,
+          "max_length": null,
+          "minimum": null,
+          "description": "CRS de um GeoJSON sem membro `crs`, por exemplo `EPSG:4674`."
+        }
+      ],
+      "metadata_example": {
+        "source": "Portaria de aprovação do Plano de Manejo",
+        "uc_identifier": "0000.42.9999",
+        "reason": "ZA oficial publicada",
+        "valid_from": "2026-02-01"
+      },
+      "rules": [
+        "A UC precisa ter Buffer de Abrangência ativo.",
+        "A publicação encerra o Buffer de Abrangência e ativa a ZA oficial na mesma transação."
+      ],
+      "example_geojson": {
+        "type": "FeatureCollection",
+        "crs": {
+          "type": "name",
+          "properties": {
+            "name": "EPSG:4674"
+          }
+        },
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "nm_uc": "UC de Exemplo",
+              "ds_fonte": "Portaria"
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -48.63,
+                    -27.73
+                  ],
+                  [
+                    -48.52,
+                    -27.73
+                  ],
+                  [
+                    -48.52,
+                    -27.62
+                  ],
+                  [
+                    -48.63,
+                    -27.62
+                  ],
+                  [
+                    -48.63,
+                    -27.73
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "maintained_bases": [
+    {
+      "id": "buffer-abrangencia",
+      "title": "Buffer de Abrangência",
+      "source": "calculado pelo pipeline",
+      "refresh": "a cada UC nova ou alterada",
+      "description": "Área de 3.000 m em torno da UC sem ZA oficial. Não é aceito por upload."
+    },
+    {
+      "id": "prodes",
+      "title": "PRODES",
+      "source": "INPE/TerraBrasilis",
+      "refresh": "mensal (fonte anual)",
+      "description": "Desmatamento anual cruzado com UCs e zonas."
+    },
+    {
+      "id": "mapbiomas-alerta",
+      "title": "MapBiomas Alerta",
+      "source": "API MapBiomas Alerta",
+      "refresh": "semanal",
+      "description": "Alertas de desmatamento validados de SC, PR e RS cruzados com UCs e zonas."
+    },
+    {
+      "id": "mapbiomas",
+      "title": "MapBiomas Cobertura",
+      "source": "MapBiomas",
+      "refresh": "anual",
+      "description": "Uso e cobertura da terra, todos os anos da coleção."
+    },
+    {
+      "id": "firms",
+      "title": "FIRMS (focos de calor)",
+      "source": "NASA FIRMS",
+      "refresh": "diária",
+      "description": "Focos de calor MODIS e VIIRS desde 2000 cruzados com UCs e zonas."
+    }
+  ],
+  "errors": [
+    {
+      "code": "MISSING_FILENAME",
+      "stage": "arquivo",
+      "meaning": "O envio não trouxe nome de arquivo.",
+      "fix": "Envie o arquivo pelo campo `file`."
+    },
+    {
+      "code": "INVALID_FILENAME",
+      "stage": "arquivo",
+      "meaning": "O nome do arquivo tem caracteres ou caminho não permitidos.",
+      "fix": "Renomeie o arquivo usando letras, números, hífen e ponto."
+    },
+    {
+      "code": "ZIP_ENTRY_LIMIT",
+      "stage": "arquivo",
+      "meaning": "O ZIP tem entradas demais.",
+      "fix": "Deixe no ZIP só os arquivos do Shapefile."
+    },
+    {
+      "code": "ZIP_SLIP",
+      "stage": "arquivo",
+      "meaning": "Uma entrada do ZIP tem caminho inseguro.",
+      "fix": "Recrie o ZIP sem caminhos absolutos ou `..`."
+    },
+    {
+      "code": "ZIP_LINK_NOT_ALLOWED",
+      "stage": "arquivo",
+      "meaning": "O ZIP contém um link simbólico.",
+      "fix": "Compacte os arquivos reais."
+    },
+    {
+      "code": "ENCRYPTED_ZIP_ENTRY",
+      "stage": "arquivo",
+      "meaning": "O ZIP está protegido por senha.",
+      "fix": "Compacte sem senha."
+    },
+    {
+      "code": "DUPLICATE_ZIP_ENTRY",
+      "stage": "arquivo",
+      "meaning": "O ZIP repete um arquivo.",
+      "fix": "Remova a cópia duplicada."
+    },
+    {
+      "code": "UNEXPECTED_ZIP_CONTENT",
+      "stage": "arquivo",
+      "meaning": "O ZIP contém um tipo de arquivo não aceito.",
+      "fix": "Mantenha só .shp, .shx, .dbf, .prj e os opcionais aceitos."
+    },
+    {
+      "code": "ZIP_UNCOMPRESSED_LIMIT",
+      "stage": "arquivo",
+      "meaning": "O conteúdo descompactado passa do limite.",
+      "fix": "Divida o envio ou simplifique a geometria."
+    },
+    {
+      "code": "ZIP_COMPRESSION_RATIO",
+      "stage": "arquivo",
+      "meaning": "Uma entrada tem compressão anormalmente alta.",
+      "fix": "Recrie o ZIP com compressão padrão."
+    },
+    {
+      "code": "SHAPEFILE_DATASET_COUNT",
+      "stage": "arquivo",
+      "meaning": "O ZIP não tem exatamente um .shp.",
+      "fix": "Envie um Shapefile por ZIP."
+    },
+    {
+      "code": "MISSING_SHAPEFILE_SIDECARS",
+      "stage": "arquivo",
+      "meaning": "Falta .shx, .dbf ou .prj.",
+      "fix": "Inclua os quatro arquivos obrigatórios com o mesmo nome."
+    },
+    {
+      "code": "MULTIPLE_OR_UNRELATED_DATASETS",
+      "stage": "arquivo",
+      "meaning": "O ZIP tem arquivos de outro dataset.",
+      "fix": "Deixe só os arquivos do Shapefile enviado."
+    },
+    {
+      "code": "SHAPEFILE_ENCODING_ERROR",
+      "stage": "conteúdo",
+      "meaning": "O DBF não pôde ser lido com a codificação informada.",
+      "fix": "Inclua um .cpg com a codificação correta (por exemplo, UTF-8)."
+    },
+    {
+      "code": "MISSING_CPG",
+      "stage": "conteúdo",
+      "meaning": "Aviso: sem .cpg, o DBF foi lido em latin1.",
+      "fix": "Inclua o .cpg para evitar acentos trocados."
+    },
+    {
+      "code": "INVALID_GEOJSON",
+      "stage": "conteúdo",
+      "meaning": "O arquivo não é um JSON válido.",
+      "fix": "Valide o arquivo num editor ou exporte de novo pelo QGIS."
+    },
+    {
+      "code": "INVALID_GEOJSON_ROOT",
+      "stage": "conteúdo",
+      "meaning": "A raiz do GeoJSON não é um objeto.",
+      "fix": "Use Feature ou FeatureCollection."
+    },
+    {
+      "code": "UNSUPPORTED_GEOJSON_ROOT",
+      "stage": "conteúdo",
+      "meaning": "A raiz do GeoJSON não é Feature nem FeatureCollection.",
+      "fix": "Envolva as geometrias em uma FeatureCollection."
+    },
+    {
+      "code": "INVALID_FEATURE_COLLECTION",
+      "stage": "conteúdo",
+      "meaning": "`features` não é uma lista.",
+      "fix": "Corrija a estrutura do GeoJSON."
+    },
+    {
+      "code": "INVALID_FEATURE",
+      "stage": "conteúdo",
+      "meaning": "Um item de `features` não é uma Feature.",
+      "fix": "Cada item precisa de `type: Feature`."
+    },
+    {
+      "code": "MISSING_CRS",
+      "stage": "conteúdo",
+      "meaning": "O GeoJSON não informa o CRS.",
+      "fix": "Inclua o membro `crs` ou `metadata.source_crs`."
+    },
+    {
+      "code": "INVALID_CRS",
+      "stage": "conteúdo",
+      "meaning": "O CRS informado não é reconhecido.",
+      "fix": "Use um código EPSG, por exemplo `EPSG:4674`."
+    },
+    {
+      "code": "INVALID_KML",
+      "stage": "conteúdo",
+      "meaning": "O KML não é um XML válido.",
+      "fix": "Exporte o KML de novo."
+    },
+    {
+      "code": "INVALID_KML_ROOT",
+      "stage": "conteúdo",
+      "meaning": "A raiz do arquivo não é `kml`.",
+      "fix": "Envie um KML padrão."
+    },
+    {
+      "code": "INVALID_KML_COORDINATES",
+      "stage": "conteúdo",
+      "meaning": "Há coordenadas KML mal formadas.",
+      "fix": "Use `longitude,latitude` separados por vírgula."
+    },
+    {
+      "code": "EMPTY_KML",
+      "stage": "conteúdo",
+      "meaning": "O KML não tem Placemark com geometria aceita.",
+      "fix": "Inclua Point, Polygon ou MultiGeometry."
+    },
+    {
+      "code": "KML_CRS_DEFINED_BY_FORMAT",
+      "stage": "conteúdo",
+      "meaning": "Aviso: KML é sempre lido em WGS 84.",
+      "fix": "Nenhuma ação necessária."
+    },
+    {
+      "code": "UNREADABLE_DATASET",
+      "stage": "conteúdo",
+      "meaning": "O arquivo não pôde ser lido.",
+      "fix": "Abra o arquivo no QGIS e exporte de novo."
+    },
+    {
+      "code": "EMPTY_DATASET",
+      "stage": "geometria",
+      "meaning": "O arquivo não tem feições.",
+      "fix": "Confira se a camada exportada não está vazia."
+    },
+    {
+      "code": "FEATURE_LIMIT_EXCEEDED",
+      "stage": "geometria",
+      "meaning": "Feições acima do limite.",
+      "fix": "Divida o envio."
+    },
+    {
+      "code": "EMPTY_GEOMETRY",
+      "stage": "geometria",
+      "meaning": "Uma feição não tem geometria.",
+      "fix": "Remova a feição ou desenhe a geometria."
+    },
+    {
+      "code": "GEOMETRY_TYPE_NOT_ALLOWED",
+      "stage": "geometria",
+      "meaning": "Tipo de geometria não aceito nesta base.",
+      "fix": "Confira os tipos aceitos da base."
+    },
+    {
+      "code": "INVALID_GEOMETRY",
+      "stage": "geometria",
+      "meaning": "A geometria é topologicamente inválida.",
+      "fix": "Corrija no QGIS (Corrigir geometrias) ou reenvie com `repair_geometry=true`."
+    },
+    {
+      "code": "GEOMETRY_REPAIR_REJECTED",
+      "stage": "geometria",
+      "meaning": "A correção automática gerou um tipo incompatível.",
+      "fix": "Corrija a geometria na origem."
+    },
+    {
+      "code": "GEOMETRY_REPAIR_AREA_DELTA",
+      "stage": "geometria",
+      "meaning": "A correção mudaria a área além do limite.",
+      "fix": "Corrija a geometria na origem."
+    },
+    {
+      "code": "GEOMETRY_REPAIRED",
+      "stage": "geometria",
+      "meaning": "Aviso: a geometria foi corrigida automaticamente.",
+      "fix": "Confira a variação de área informada."
+    },
+    {
+      "code": "OUTSIDE_SC_BBOX",
+      "stage": "geometria",
+      "meaning": "A geometria não toca Santa Catarina.",
+      "fix": "Confira o CRS e a posição dos dados."
+    },
+    {
+      "code": "VERTEX_LIMIT_EXCEEDED",
+      "stage": "geometria",
+      "meaning": "Vértices acima do limite.",
+      "fix": "Simplifique a geometria ou divida o envio."
+    },
+    {
+      "code": "UC_OPERATION_REQUIRES_SINGLE_FEATURE",
+      "stage": "geometria",
+      "meaning": "A operação exige exatamente uma feição.",
+      "fix": "Envie uma UC por importação."
+    },
+    {
+      "code": "OPERATION_REQUIRES_SINGLE_FEATURE",
+      "stage": "geometria",
+      "meaning": "A operação exige exatamente uma feição.",
+      "fix": "Envie uma zona por importação."
+    },
+    {
+      "code": "REPLACE_POINT_REQUIRES_POLYGON",
+      "stage": "geometria",
+      "meaning": "A substituição de ponto exige polígono.",
+      "fix": "Envie o limite poligonal oficial."
+    },
+    {
+      "code": "MISSING_UC_NAME",
+      "stage": "conteúdo",
+      "meaning": "O nome da UC não foi encontrado.",
+      "fix": "Inclua `nm_uc` no arquivo ou `name` em metadata."
+    },
+    {
+      "code": "MISSING_UC_IDENTITY",
+      "stage": "lote",
+      "meaning": "Uma UC do lote não tem identificador forte.",
+      "fix": "Preencha `uc_id`, `cd_cnuc` ou `wdpa_pid` em cada feição."
+    },
+    {
+      "code": "DUPLICATE_UC_IDENTITY_IN_BATCH",
+      "stage": "lote",
+      "meaning": "Duas feições do lote têm o mesmo identificador.",
+      "fix": "Corrija os identificadores repetidos."
+    },
+    {
+      "code": "DUPLICATE_UC_GEOMETRY_IN_BATCH",
+      "stage": "lote",
+      "meaning": "Duas feições do lote têm a mesma geometria.",
+      "fix": "Remova a feição repetida."
+    },
+    {
+      "code": "UC_ALREADY_EXISTS",
+      "stage": "lote",
+      "meaning": "A UC já está cadastrada.",
+      "fix": "Use a atualização de geometria ou `skip_duplicates`."
+    },
+    {
+      "code": "ZA_CREATE_REQUIRES_BATCH",
+      "stage": "lote",
+      "meaning": "A ZA oficial nova não é publicada sozinha.",
+      "fix": "Use o lote UC + ZA ou a substituição do Buffer de Abrangência."
+    },
+    {
+      "code": "INVALID_METADATA_JSON",
+      "stage": "metadados",
+      "meaning": "`metadata` não é JSON válido.",
+      "fix": "Envie um objeto JSON, como no exemplo da base."
+    },
+    {
+      "code": "INVALID_METADATA_TYPE",
+      "stage": "metadados",
+      "meaning": "`metadata` não é um objeto JSON.",
+      "fix": "Envie `{...}`, não lista nem texto."
+    },
+    {
+      "code": "INVALID_DOMAIN_METADATA",
+      "stage": "metadados",
+      "meaning": "Faltam campos obrigatórios ou há valores inválidos.",
+      "fix": "Confira a tabela de metadados da base."
+    },
+    {
+      "code": "INVALID_UPDATE_METADATA",
+      "stage": "metadados",
+      "meaning": "Faltam `reason`, `expected_version` ou identificador forte.",
+      "fix": "Preencha os três."
+    },
+    {
+      "code": "INVALID_REPLACE_POINT_METADATA",
+      "stage": "metadados",
+      "meaning": "Faltam `reason`, `expected_version` ou identificador forte.",
+      "fix": "Preencha os três."
+    },
+    {
+      "code": "INVALID_REPLACE_BUFFER_ABRANGENCIA_METADATA",
+      "stage": "metadados",
+      "meaning": "Falta `reason`.",
+      "fix": "Informe a justificativa da substituição."
+    }
+  ]
+}
