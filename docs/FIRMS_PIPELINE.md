@@ -308,3 +308,9 @@ Assim, uma falha entre Bronze e Silver pode ser retomada por outro run sem obrig
 a UC nova a chamar a NASA. Para partições antigas sem esse campo, o recruzamento
 localiza na mesma janela/produto o manifesto Bronze com source_checksum correspondente
 e valida SHA-256 e tamanho do CSV. Partições Silver sem detecções são ignoradas.
+O coordenador de replay consulta a cota compartilhada antes de cada página e espera
+quando restar menos de 20% de margem. A verificação é repetida a cada 30 segundos,
+com limite de 660 segundos, antes de iniciar outra página. Isso complementa a espera
+do cliente após uma rejeição confirmada por cota. Outros HTTP 400 continuam falhando
+com o texto da resposta sanitizado, para distinguir contrato, limitação e falha externa.
+Não registrar MAP_KEY nem URL autenticada nos diagnósticos.

@@ -737,3 +737,12 @@ def test_availability_skips_impossible_dates_and_preserves_published_history(tmp
     finally:
         with psycopg2.connect(dsn) as c, c.cursor() as cur:
             cur.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
+
+def test_http_error_diagnostics_remove_key_and_authenticated_urls() -> None:
+    session = FakeSession([FakeResponse(403, b"denied secret https://example.test/secret/details")])
+    client = FirmsAreaClient(map_key="secret", base_url="https://example.test/api/area/csv", session=session)
+    with pytest.raises(FirmsClientError, match="HTTP 403") as error:
+        client.fetch_csv(source_product="MODIS_SP", bbox="-54,-30,-48,-25", start_date="2020-01-01", day_range=1)
+    assert "secret" not in str(error.value)
+    assert "https://" not in str(error.value)
+    assert "denied" in str(error.value)

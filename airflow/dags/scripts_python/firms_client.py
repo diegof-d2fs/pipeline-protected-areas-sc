@@ -7,6 +7,7 @@ import io
 import email.utils
 import json
 import logging
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -110,7 +111,8 @@ class FirmsAreaClient:
                 continue
             if response.status_code >= 400:
                 raise FirmsClientError(
-                    f"FIRMS Area API rejected the request with HTTP {response.status_code}."
+                    f"FIRMS Area API rejected the request with HTTP {response.status_code}. "
+                    + self._sanitized_error_body(response.content)
                 )
             content_type = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
             content = bytes(response.content)
@@ -124,6 +126,12 @@ class FirmsAreaClient:
                 sanitized_endpoint=sanitized,
             )
         raise FirmsClientError("FIRMS Area API transport failed after bounded retries.") from None
+
+    def _sanitized_error_body(self, content: bytes) -> str:
+        body = content.decode("utf-8", errors="replace")
+        body = body.replace(self._map_key, "{MAP_KEY}").replace(quote(self._map_key, safe=""), "{MAP_KEY}")
+        body = re.sub(r"https?://\S+", "{URL}", body)
+        return " ".join(body.split())[:500]
 
     def fetch_availability(self) -> dict[str, dict[str, str]]:
         """Read official product availability before planning historical requests."""
