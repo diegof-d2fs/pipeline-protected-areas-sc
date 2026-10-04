@@ -255,3 +255,7 @@ SP e NRT são fontes identificadas separadamente. A cobertura NRT completa o per
 recente ainda ausente em SP; uma resposta vazia fora da disponibilidade SP não
 comprova ausência de focos naquele período.
 Disponibilidade oficial: https://firms.modaps.eosdis.nasa.gov/api/data_availability/
+A descoberta com safe mode desativado usa airflow/dags/.airflowignore para excluir
+scripts_python da varredura. Os módulos continuam importáveis e as mesmas 12 DAGs são
+descobertas; o scheduler deixa de analisar 18 bibliotecas como possíveis DAGs.
+Referência: https://airflow.apache.org/docs/apache-airflow/2.10.3/core-concepts/dags.html#airflowignore
