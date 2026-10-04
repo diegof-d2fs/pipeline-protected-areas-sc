@@ -529,3 +529,17 @@ Comandos principais:
 - seed_bronze_local
 - reprocess <dag_id> <periodo>
 - update_project_files
+
+
+## CI/CD na AWS
+
+O workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) executa a suíte completa
+com PostGIS em pushes no main e pull requests. Depois dos testes, um push no main publica
+a imagem do Airflow no ECR e registra seu commit em /pa-sc/prod/deploy/airflow_image_tag.
+
+O deploy exige AWS_DEPLOY_ROLE_ARN, fornecida pelo módulo ci da infraestrutura.
+A AWS entrega credenciais temporárias por GitHub OIDC e exige este repositório na
+branch main. A imagem é ativada no próximo início do nó de processamento. Antes de
+uma ativação manual, garantir zero runs ativos e espelhamento da Medallion no S3.
+O backfill histórico e seus requisitos de cobertura estão em
+[docs/FIRMS_PIPELINE.md](docs/FIRMS_PIPELINE.md).
