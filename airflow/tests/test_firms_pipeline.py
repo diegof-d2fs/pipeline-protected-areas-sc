@@ -326,19 +326,30 @@ def test_daily_summary_allows_one_source_and_rejects_total_failure(tmp_path: Pat
     assert '"status": "FAILED"' in summary_path.read_text(encoding="utf-8")
 
 
-def test_recross_relates_published_history_to_new_area_without_api(tmp_path: Path) -> None:
+@pytest.mark.parametrize("legacy_manifest", [False, True])
+def test_recross_relates_published_history_to_new_area_without_api(tmp_path: Path, legacy_manifest: bool) -> None:
     service = FirmsPipelineService(_config(tmp_path), client_factory=lambda: pytest.fail("API chamada"))
     content = (
         CSV_HEADER + "-27.10,-49.10,330,0.4,0.4,2020-03-02,0301,N20,VIIRS,h,2,290,5,D,0\n"
     ).encode()
     window = FirmsWindow("VIIRS_NOAA20_NRT", date(2020, 3, 1), date(2020, 3, 5), "backfill")
     context = _context(window.to_conf())
-    bronze = {"checksum_sha256": "c" * 64, "received_at": "2020-03-06T00:00:00+00:00"}
+    from dataclasses import replace
+    bronze_context = replace(context, run_id="original_acquisition")
+    bronze_dir = service._partition(service.config.medallion_bronze_path, window, bronze_context)
+    bronze_dir.mkdir(parents=True)
+    bronze = {"checksum_sha256": service._sha256(content), "received_at": "2020-03-06T00:00:00+00:00",
+              "object_key": service._relative(bronze_dir / "response.csv"), "bytes": len(content),
+              "manifest_key": service._relative(bronze_dir / "manifest.json")}
+    (bronze_dir / "manifest.json").write_text(json.dumps(bronze), encoding="utf-8")
+    (bronze_dir / "response.csv").write_bytes(content)
     detections, _ = service._normalize(content, window, context, bronze)
     service._publish_silver(detections, window, context, bronze)
-    bronze_dir = service._partition(service.config.medallion_bronze_path, window, context)
-    bronze_dir.mkdir(parents=True)
-    (bronze_dir / "manifest.json").write_text(json.dumps(bronze), encoding="utf-8")
+    if legacy_manifest:
+        silver_dir = service._partition(service.config.medallion_silver_path, window, context)
+        manifest = json.loads((silver_dir / "manifest.json").read_text())
+        manifest.pop("bronze_manifest_key")
+        (silver_dir / "manifest.json").write_text(json.dumps(manifest))
     new_uc = gpd.GeoDataFrame(
         [{"id_uc": 42, "geometry": box(-49.2, -27.2, -49.0, -27.0)}], crs="EPSG:4674"
     )

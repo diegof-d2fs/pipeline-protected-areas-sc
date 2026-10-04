@@ -301,3 +301,10 @@ que um ano inteiro esteja vazio com base numa única janela.
 O schema canônico inclui o novo estado e uma atualização idempotente do CHECK para
 bancos existentes. O verificador final distingue publicação de dispensa e continua
 exigindo cobertura contínua de todos os intervalos disponíveis.
+### Recruzamento após uma retomada
+
+A Silver registra bronze_manifest_key para apontar a aquisição imutável original.
+Assim, uma falha entre Bronze e Silver pode ser retomada por outro run sem obrigar
+a UC nova a chamar a NASA. Para partições antigas sem esse campo, o recruzamento
+localiza na mesma janela/produto o manifesto Bronze com source_checksum correspondente
+e valida SHA-256 e tamanho do CSV. Partições Silver sem detecções são ignoradas.

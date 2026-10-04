@@ -539,17 +539,16 @@ class FirmsPipelineService:
         relations_total = 0
         inserted_total = 0
         for partition in partitions:
+            silver = json.loads((partition / "manifest.json").read_text(encoding="utf-8"))
+            if silver["record_count"] == 0:
+                continue
             detections = gpd.read_parquet(partition / "detections.parquet")
             relations = self._build_relations(detections, reference)
             if relations.empty:
                 continue
             relative = partition.relative_to(silver_root)
-            bronze = json.loads(
-                (Path(self.config.medallion_bronze_path) / relative / "manifest.json").read_text(
-                    encoding="utf-8"
-                )
-            )
-            silver = json.loads((partition / "manifest.json").read_text(encoding="utf-8"))
+            bronze = self._bronze_for_silver(relative, silver)
+
             gold = self._publish_recross_gold(relations, relative, context, silver)
             relations_total += len(relations)
             inserted_total += self._load_postgres(relations, None, context, bronze, silver, gold)
@@ -563,6 +562,29 @@ class FirmsPipelineService:
         }
         self._write_run_quality(context, summary)
         return summary
+
+    def _bronze_for_silver(self, relative: Path, silver: dict[str, Any]) -> dict[str, Any]:
+        """Resolve the immutable acquisition even when Silver belongs to a retry run."""
+        medallion_root = Path(self.config.medallion_bronze_path).parent.resolve()
+        key = silver.get("bronze_manifest_key")
+        candidates = ([medallion_root / key] if key else sorted(
+            (Path(self.config.medallion_bronze_path) / relative.parent).glob("run_id=*/manifest.json")
+        ))
+        for candidate in candidates:
+            path = candidate.resolve()
+            if medallion_root not in path.parents:
+                raise FirmsPipelineError("Unsafe FIRMS Bronze manifest reference.")
+            bronze = json.loads(path.read_text(encoding="utf-8"))
+            if bronze.get("checksum_sha256") != silver["source_checksum"]:
+                continue
+            response_path = (medallion_root / bronze["object_key"]).resolve()
+            if medallion_root not in response_path.parents:
+                raise FirmsPipelineError("Unsafe FIRMS Bronze response reference.")
+            content = response_path.read_bytes()
+            if self._sha256(content) != silver["source_checksum"] or len(content) != bronze["bytes"]:
+                raise FirmsPipelineError("FIRMS recross Bronze checksum or byte size mismatch.")
+            return bronze
+        raise FirmsPipelineError("FIRMS Silver has no matching immutable Bronze acquisition.")
 
     def _publish_recross_gold(
         self,
@@ -742,6 +764,7 @@ class FirmsPipelineService:
             "run_id": context.run_id,
             "source_product": window.source_product,
             "record_count": len(detections),
+            "bronze_manifest_key": bronze.get("manifest_key"),
             "source_checksum": bronze["checksum_sha256"],
             "object_key": self._relative(target / "detections.parquet"),
             "created_at": datetime.now(timezone.utc).isoformat(),
