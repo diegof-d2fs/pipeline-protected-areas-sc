@@ -24,25 +24,32 @@ def _context(stage: str, kwargs: dict, window_conf: dict | None = None) -> TaskE
 
 
 def _plan(**kwargs):
-    """Return a bounded page of pending or failed historical windows."""
-    return FirmsPipelineService().plan_backfill_windows(_context("plan_windows", kwargs))
+    """Keep a bounded page while amortizing Airflow startup over four mapped tasks."""
+    windows = FirmsPipelineService().plan_backfill_windows(_context("plan_windows", kwargs))
+    chunk_size = max(1, (len(windows) + 3) // 4)
+    return [
+        {"window_confs": [item["window_conf"] for item in windows[offset:offset + chunk_size]]}
+        for offset in range(0, len(windows), chunk_size)
+    ]
 
 
-def _process(window_conf: dict, **kwargs):
-    """Process one claimed window and retain a resumable failure state."""
-    return FirmsPipelineService().process_window(
-        _context("process_window", kwargs, window_conf),
-        suppress_errors=True,
-    )
+def _process(window_conf: dict | None = None, window_confs: list[dict] | None = None, **kwargs):
+    """Retain individual resumable transactions, including already expanded old runs."""
+    service = FirmsPipelineService()
+    if window_confs is None:
+        return service.process_window(
+            _context("process_window", kwargs, window_conf), suppress_errors=True,
+        )
+    return [
+        service.process_window(_context("process_window", kwargs, conf), suppress_errors=True)
+        for conf in window_confs
+    ]
 
 
-def _summarize(results: list[dict], **kwargs):
-    """Validate the aggregate result for the current bounded page."""
-    return FirmsPipelineService().summarize_backfill(
-        _context("summarize", kwargs),
-        results,
-    )
-
+def _summarize(results: list, **kwargs):
+    """Validate every window result from grouped or already expanded historical tasks."""
+    windows = [item for batch in results for item in (batch if isinstance(batch, list) else [batch])]
+    return FirmsPipelineService().summarize_backfill(_context("summarize", kwargs), windows)
 
 with DAG(
     dag_id="DAG_FIRMS_BACKFILL",

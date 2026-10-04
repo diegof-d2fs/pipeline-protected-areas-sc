@@ -21,6 +21,7 @@ import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 from shapely import wkb
+from shapely.prepared import prep
 from shapely.validation import make_valid
 
 from scripts_python.config import PipelineConfig
@@ -81,6 +82,7 @@ class FirmsPipelineService:
     ) -> None:
         self.config = config or PipelineConfig.from_env()
         self._client_factory = client_factory
+        self._state_boundary_cache: tuple[tuple[str, str], gpd.GeoDataFrame] | None = None
 
     def resolve_incremental_windows(self, context: TaskExecutionContext) -> list[dict[str, str]]:
         """Cover the whole schedule period, plus overlap, for every configured NRT product.
@@ -404,7 +406,7 @@ class FirmsPipelineService:
             crs="EPSG:4326",
         ).to_crs("EPSG:4674")
         boundary = self._load_state_boundary().to_crs(frame.crs).geometry.unary_union
-        inside = frame.geometry.apply(boundary.covers)
+        inside = frame.geometry.apply(prep(boundary).covers)
         outside_sc_records = int((~inside).sum())
         frame = frame.loc[inside].copy()
         viirs = "VIIRS" in window.source_product.upper()
@@ -891,6 +893,8 @@ class FirmsPipelineService:
             root
             / f"run_id={self._safe_segment(context.run_id)}"
             / f"product={self._safe_segment(window.source_product)}"
+            / f"start_date={window.start_date.isoformat()}"
+            / f"end_date={window.end_date.isoformat()}"
         )
         target.mkdir(parents=True, exist_ok=True)
         payload = {
@@ -955,12 +959,13 @@ class FirmsPipelineService:
         )
 
     def _load_state_boundary(self) -> gpd.GeoDataFrame:
-        """Read the canonical IBGE Bronze package, including on a fresh cloud node."""
+        """Validate canonical bytes on every read and reuse geometry within one task."""
         package = Path(
             self.config.medallion_bronze_path,
             "boundaries", "source=ibge", "year=2025", "area=sc",
         )
         source = Path(self.config.sc_boundary_source_dir) / "limites_SC.geojson"
+        entry = None
         if package.exists():
             manifest_path = package / "manifest.json"
             if not manifest_path.is_file():
@@ -976,17 +981,21 @@ class FirmsPipelineService:
                 raise FirmsPipelineError("Santa Catarina Bronze boundary inventory is incomplete.")
             source = package / source.name
             entry = entries[0]
-            if (
-                not source.is_file()
-                or self._sha256(source.read_bytes()) != entry.get("checksum_sha256")
-                or source.stat().st_size != entry.get("byte_size")
-            ):
-                raise FirmsPipelineError("Santa Catarina Bronze boundary checksum or size mismatch.")
         if not source.is_file():
             raise FirmsPipelineError(f"Santa Catarina boundary is unavailable: {source}")
-        boundary = gpd.read_file(source)
+        content = source.read_bytes()
+        checksum = self._sha256(content)
+        if entry is not None and (
+            checksum != entry.get("checksum_sha256") or len(content) != entry.get("byte_size")
+        ):
+            raise FirmsPipelineError("Santa Catarina Bronze boundary checksum or size mismatch.")
+        cache_key = (str(source.resolve()), checksum)
+        if self._state_boundary_cache is not None and self._state_boundary_cache[0] == cache_key:
+            return self._state_boundary_cache[1]
+        boundary = gpd.read_file(io.BytesIO(content))
         if boundary.empty or boundary.crs is None:
             raise FirmsPipelineError("Santa Catarina boundary is empty or has no CRS.")
+        self._state_boundary_cache = (cache_key, boundary)
         return boundary
 
     def _partition(

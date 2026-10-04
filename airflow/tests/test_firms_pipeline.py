@@ -444,3 +444,78 @@ def test_firms_rejects_uncommitted_bronze_boundary(tmp_path: Path) -> None:
     (target.parent / "manifest.json").unlink()
     with pytest.raises(FirmsPipelineError, match="manifest is missing"):
         FirmsPipelineService(config)._load_state_boundary()
+
+def test_boundary_geometry_cache_keeps_validating_bronze_bytes(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    target = _bronze_boundary(config)
+    service = FirmsPipelineService(config)
+    read_file = gpd.read_file
+    calls = []
+
+    def read_once(*args, **kwargs):
+        calls.append(1)
+        return read_file(*args, **kwargs)
+
+    monkeypatch.setattr(gpd, "read_file", read_once)
+    first = service._load_state_boundary()
+    assert service._load_state_boundary().equals(first)
+    assert len(calls) == 1
+    target.write_bytes(target.read_bytes() + b"\n")
+    with pytest.raises(FirmsPipelineError, match="checksum or size mismatch"):
+        service._load_state_boundary()
+
+
+@pytest.mark.parametrize("count", [0, 1, 12, 100])
+def test_backfill_groups_preserve_every_window_and_bound_parallelism(count: int, monkeypatch) -> None:
+    from datetime import datetime, timedelta, timezone
+    from types import SimpleNamespace
+    import dag_firms_backfill as dag_module
+
+    windows = [{"window_conf": {"source_product": "MODIS_SP", "start_date": str(date(2000, 11, 1) + timedelta(days=5 * i)), "end_date": str(date(2000, 11, 5) + timedelta(days=5 * i)), "mode": "backfill"}} for i in range(count)]
+    fake = SimpleNamespace(plan_backfill_windows=lambda context: windows)
+    monkeypatch.setattr(dag_module, "FirmsPipelineService", lambda: fake)
+    groups = dag_module._plan(dag=SimpleNamespace(dag_id="DAG_FIRMS_BACKFILL"), logical_date=datetime(2026, 10, 3, tzinfo=timezone.utc), run_id="replay__group_test", dag_run=SimpleNamespace(conf={}))
+    assert len(groups) <= 4
+    assert [conf for group in groups for conf in group["window_confs"]] == [item["window_conf"] for item in windows]
+    assert all(1 <= len(group["window_confs"]) <= 25 for group in groups)
+
+
+def test_backfill_group_collects_failed_windows_and_supports_old_mapping(monkeypatch) -> None:
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+    import dag_firms_backfill as dag_module
+
+    calls = []
+
+    def process(context, *, suppress_errors):
+        assert suppress_errors
+        calls.append(context.conf["source_product"])
+        return {"status": "FAILED" if context.conf["source_product"] == "failed" else "SUCCESS"}
+
+    fake = SimpleNamespace(process_window=process, summarize_backfill=lambda context, results: results)
+    monkeypatch.setattr(dag_module, "FirmsPipelineService", lambda: fake)
+    kwargs = dict(dag=SimpleNamespace(dag_id="DAG_FIRMS_BACKFILL"), logical_date=datetime(2026, 10, 3, tzinfo=timezone.utc), run_id="replay__group_test", dag_run=SimpleNamespace(conf={}))
+    grouped = dag_module._process(window_confs=[{"source_product": "first"}, {"source_product": "failed"}, {"source_product": "last"}], **kwargs)
+    old = dag_module._process(window_conf={"source_product": "old"}, **kwargs)
+    assert calls == ["first", "failed", "last", "old"]
+    assert dag_module._summarize([grouped, old], **kwargs) == [{"status": "SUCCESS"}, {"status": "FAILED"}, {"status": "SUCCESS"}, {"status": "SUCCESS"}]
+
+def test_quality_retains_each_window_of_same_product_in_one_run(tmp_path: Path) -> None:
+    service = FirmsPipelineService(_config(tmp_path))
+    windows = [
+        FirmsWindow("MODIS_SP", date(2001, 3, 1), date(2001, 3, 5), "backfill"),
+        FirmsWindow("MODIS_SP", date(2001, 3, 6), date(2001, 3, 10), "backfill"),
+    ]
+    for window, count in zip(windows, [7, 11]):
+        service._write_quality(
+            _context(window.to_conf()), window, {"source_records": count},
+            {"status": "SUCCESS", "silver_records": count - 1, "gold_relations": 1},
+        )
+    reports = [
+        json.loads(path.read_text())
+        for path in (Path(service.config.medallion_gold_path).parent / "quality" / "firms").rglob("summary.json")
+    ]
+    assert len(reports) == 2
+    assert {(item["start_date"], item["end_date"], item["source_detections"]) for item in reports} == {
+        ("2001-03-01", "2001-03-05", 7), ("2001-03-06", "2001-03-10", 11),
+    }

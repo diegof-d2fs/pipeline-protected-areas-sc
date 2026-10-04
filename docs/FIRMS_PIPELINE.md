@@ -236,3 +236,22 @@ A pasta `raw/ibge` só é consultada quando ainda não existe esse pacote na Bro
 Um pacote Bronze incompleto ou alterado interrompe a publicação; a fonte raw não mascara
 falhas de integridade. Isso permite executar o backfill em uma máquina nova sincronizada
 com o S3, sem depender da landing local do primeiro carregamento.
+### Execução em lotes e auditoria histórica
+
+Cada página seleciona até 100 janelas e as distribui em até quatro tarefas do Airflow,
+com até 25 janelas por tarefa. Cada janela mantém sua transação, estado retomável,
+partições Medallion e validação de checksum. Uma falha não impede as demais janelas
+do lote de serem processadas; o resumo da página falha se qualquer janela falhar.
+Runs antigos já expandidos continuam compatíveis com a janela individual.
+
+A geometria do limite estadual é reutilizada dentro da tarefa, mas os bytes e o
+manifesto são verificados a cada janela. O predicado covers usa geometria preparada
+sem alterar a regra de inclusão de pontos na borda de SC.
+
+Os relatórios de qualidade incluem produto, início e fim da janela no caminho.
+Assim, várias janelas do mesmo produto e run não sobrescrevem suas estatísticas.
+A aquisição histórica deve respeitar a disponibilidade real de cada produto:
+SP e NRT são fontes identificadas separadamente. A cobertura NRT completa o período
+recente ainda ausente em SP; uma resposta vazia fora da disponibilidade SP não
+comprova ausência de focos naquele período.
+Disponibilidade oficial: https://firms.modaps.eosdis.nasa.gov/api/data_availability/
