@@ -280,3 +280,24 @@ Erros de contrato continuam interrompendo a janela. A cota é compartilhada pela
 MAP_KEY entre as tarefas; a espera é registrada sem divulgar a chave ou a URL
 autenticada. Os intervalos publicados continuam disponíveis durante a espera.
 Referência: https://firms.modaps.eosdis.nasa.gov/content/academy/data_api/firms_api_use.html
+### Planejamento limitado à disponibilidade do sensor
+
+A DAG_FIRMS_BACKFILL consulta a disponibilidade oficial antes de semear ou selecionar
+janelas. Produtos ausentes ou datas inválidas interrompem o planejamento. Novas
+execuções criam apenas janelas que intersectam min_date/max_date do produto, mantendo
+a grade original de cinco dias para não duplicar partições em uma retomada.
+
+Janelas PENDING/FAILED já semeadas fora desse intervalo passam a
+SKIPPED_UNAVAILABLE, com o intervalo oficial em last_error. Não consomem a Area API,
+não geram CSV vazio e não executam cruzamento espacial. Janelas PUBLISHED e os
+artefatos já existentes ficam preservados. Se uma futura publicação da NASA tornar
+uma janela dispensada disponível, o planejamento a reativa como PENDING.
+
+Uma janela disponível pode retornar zero focos na área consultada. A resposta original
+é auditada na Bronze; esse caso evita carregar o limite de SC, consultar/preparar
+geometrias de UC/ZA/Buffer de Abrangência e inserir relações no banco. Não se presume
+que um ano inteiro esteja vazio com base numa única janela.
+
+O schema canônico inclui o novo estado e uma atualização idempotente do CHECK para
+bancos existentes. O verificador final distingue publicação de dispensa e continua
+exigindo cobertura contínua de todos os intervalos disponíveis.

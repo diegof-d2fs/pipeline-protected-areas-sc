@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import email.utils
 import json
 import logging
@@ -122,6 +124,28 @@ class FirmsAreaClient:
                 sanitized_endpoint=sanitized,
             )
         raise FirmsClientError("FIRMS Area API transport failed after bounded retries.") from None
+
+    def fetch_availability(self) -> dict[str, dict[str, str]]:
+        """Read official product availability before planning historical requests."""
+        base = urlsplit(self._base_url)
+        endpoint = urlunsplit((base.scheme, base.netloc,
+                              "/api/data_availability/csv/" + quote(self._map_key, safe="") + "/ALL",
+                              "", ""))
+        try:
+            response = self._session.get(endpoint, timeout=self._timeout)
+        except requests.RequestException:
+            raise FirmsClientError("FIRMS availability request failed.") from None
+        if response.status_code != 200:
+            raise FirmsClientError(f"FIRMS availability request failed with HTTP {response.status_code}.")
+        try:
+            rows = csv.DictReader(io.StringIO(response.content.decode("utf-8-sig")))
+            result = {row["data_id"]: {"min_date": row["min_date"], "max_date": row["max_date"]}
+                      for row in rows}
+        except (KeyError, UnicodeDecodeError, csv.Error):
+            raise FirmsClientError("FIRMS availability response is invalid.") from None
+        if not result:
+            raise FirmsClientError("FIRMS availability response is empty.")
+        return result
 
     def _quota_exhausted(self) -> bool:
         """Check the official quota endpoint without exposing its authenticated URL."""

@@ -631,7 +631,7 @@ def test_yearly_backfill_preserves_existing_window_grid_and_recovers_failure(tmp
         cursor.execute(sql.SQL("""
             CREATE TABLE {}.firms_backfill_window (
                 source_product text NOT NULL, start_date date NOT NULL, end_date date NOT NULL,
-                processing_state text NOT NULL DEFAULT 'PENDING',
+                processing_state text NOT NULL DEFAULT 'PENDING', last_error text, updated_at timestamptz,
                 UNIQUE (source_product, start_date, end_date)
             )
         """).format(sql.Identifier(schema)))
@@ -639,7 +639,8 @@ def test_yearly_backfill_preserves_existing_window_grid_and_recovers_failure(tmp
         scoped_dsn = make_dsn(dsn, options="-c search_path=" + schema)
         service = FirmsPipelineService(replace(_config(tmp_path), project_db_url=scoped_dsn))
         context = _context({"start_date": "2020-12-28", "end_date": "2021-01-06",
-                            "products": ["MODIS_SP"], "batch_size": 100, "yearly_batches": True})
+                            "products": ["MODIS_SP"], "batch_size": 100, "yearly_batches": True,
+                            "availability": {"MODIS_SP": {"min_date": "2000-11-01", "max_date": "2026-06-30"}}})
         first = service.plan_backfill_windows(context)
         assert [(item["window_conf"]["start_date"], item["window_conf"]["end_date"])
                 for item in first] == [("2020-12-28", "2021-01-01")]
@@ -659,3 +660,69 @@ def test_yearly_backfill_preserves_existing_window_grid_and_recovers_failure(tmp
     finally:
         with psycopg2.connect(dsn) as connection, connection.cursor() as cursor:
             cursor.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
+
+def test_client_reads_product_availability_without_leaking_key() -> None:
+    session = FakeSession([FakeResponse(200, b"data_id,min_date,max_date\nMODIS_SP,2000-11-01,2026-06-30\n")])
+    client = FirmsAreaClient(map_key="secret", base_url="https://example.test/api/area/csv", session=session)
+    assert client.fetch_availability() == {"MODIS_SP": {"min_date": "2000-11-01", "max_date": "2026-06-30"}}
+    assert "data_availability" in session.calls[0][0]
+
+
+def test_empty_csv_does_not_load_boundary_or_reference_geometries(tmp_path: Path, monkeypatch) -> None:
+    service = FirmsPipelineService(_config(tmp_path))
+    def forbidden():
+        raise AssertionError("Empty acquisition must not load spatial reference layers")
+    monkeypatch.setattr(service, "_load_state_boundary", forbidden)
+    monkeypatch.setattr(service, "_load_reference_layers", forbidden)
+    window = FirmsWindow("MODIS_SP", date(2020, 1, 1), date(2020, 1, 5), "backfill")
+    detections, metrics = service._normalize(CSV_HEADER.encode(), window, _context(), {"checksum_sha256": "a"*64})
+    assert metrics["source_records"] == 0
+    assert detections.empty
+    assert service._build_relations(detections).empty
+
+def test_availability_skips_impossible_dates_and_preserves_published_history(tmp_path: Path) -> None:
+    import os
+    from dataclasses import replace
+    from uuid import uuid4
+    import psycopg2
+    from psycopg2 import sql
+    from psycopg2.extensions import make_dsn
+
+    dsn = os.getenv("MUTATION_TEST_DB_URL")
+    if not dsn:
+        pytest.skip("MUTATION_TEST_DB_URL is required for availability planning")
+    schema = "firms_availability_test_" + uuid4().hex
+    with psycopg2.connect(dsn) as c, c.cursor() as cur:
+        cur.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
+        cur.execute(sql.SQL("""CREATE TABLE {}.firms_backfill_window (
+            source_product text, start_date date, end_date date,
+            processing_state text DEFAULT 'PENDING', last_error text, updated_at timestamptz,
+            UNIQUE (source_product, start_date, end_date))""").format(sql.Identifier(schema)))
+    try:
+        scoped = make_dsn(dsn, options="-c search_path="+schema)
+        service = FirmsPipelineService(replace(_config(tmp_path), project_db_url=scoped))
+        with psycopg2.connect(scoped) as c, c.cursor() as cur:
+            cur.execute("INSERT INTO firms_backfill_window VALUES ('MODIS_SP','2020-12-01','2020-12-05','PENDING',NULL,NULL),('MODIS_SP','2020-12-16','2020-12-20','PUBLISHED',NULL,NULL)")
+        conf = {"start_date":"2020-12-01", "end_date":"2020-12-20", "products":["MODIS_SP"],
+                "availability":{"MODIS_SP":{"min_date":"2020-12-08","max_date":"2020-12-12"}}}
+        selected = service.plan_backfill_windows(_context(conf))
+        assert [w["window_conf"]["start_date"] for w in selected] == ["2020-12-06", "2020-12-11"]
+        with psycopg2.connect(scoped) as c, c.cursor() as cur:
+            cur.execute("SELECT start_date,processing_state FROM firms_backfill_window ORDER BY start_date")
+            assert cur.fetchall() == [(date(2020,12,1),'SKIPPED_UNAVAILABLE'),
+                                      (date(2020,12,6),'PENDING'), (date(2020,12,11),'PENDING'),
+                                      (date(2020,12,16),'PUBLISHED')]
+        # A later official release makes a formerly unavailable interval eligible again.
+        conf["availability"]["MODIS_SP"]["min_date"] = "2020-12-01"
+        selected = service.plan_backfill_windows(_context(conf))
+        assert [w["window_conf"]["start_date"] for w in selected] == ["2020-12-01", "2020-12-06", "2020-12-11"]
+        # A new replay with no existing rows never seeds unavailable intervals.
+        conf["products"] = ["VIIRS_NOAA20_SP"]
+        conf["availability"] = {"VIIRS_NOAA20_SP":{"min_date":"2020-12-08","max_date":"2020-12-12"}}
+        assert len(service.plan_backfill_windows(_context(conf))) == 2
+        with psycopg2.connect(scoped) as c, c.cursor() as cur:
+            cur.execute("SELECT count(*) FROM firms_backfill_window WHERE source_product='VIIRS_NOAA20_SP'")
+            assert cur.fetchone()[0] == 2
+    finally:
+        with psycopg2.connect(dsn) as c, c.cursor() as cur:
+            cur.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))

@@ -708,7 +708,7 @@ CREATE TABLE IF NOT EXISTS firms_backfill_window (
     CONSTRAINT uq_firms_backfill_window UNIQUE (source_product, start_date, end_date),
     CONSTRAINT chk_firms_backfill_window_dates CHECK (start_date <= end_date AND end_date - start_date <= 4),
     CONSTRAINT chk_firms_backfill_window_state
-        CHECK (processing_state IN ('PENDING', 'RUNNING', 'PUBLISHED', 'FAILED')),
+        CHECK (processing_state IN ('PENDING', 'RUNNING', 'PUBLISHED', 'FAILED', 'SKIPPED_UNAVAILABLE')),
     CONSTRAINT chk_firms_backfill_window_attempts CHECK (attempt_count >= 0)
 );
 
@@ -830,3 +830,18 @@ END $$;
 COMMENT ON TABLE public.uc_geometry_version IS 'Historico de geometria e vigencia das UCs; uma versao ativa por UC.';
 COMMENT ON TABLE public.cadastral_event IS 'Eventos cadastrais confirmados pelo pipeline e chave de idempotencia.';
 -- END CADASTRAL_AND_RASTER_BASELINE
+
+-- Upgrade existing control tables without changing published data or Bronze artifacts.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_firms_backfill_window_state'
+          AND conrelid = 'public.firms_backfill_window'::regclass
+          AND pg_get_constraintdef(oid) NOT LIKE '%SKIPPED_UNAVAILABLE%'
+    ) THEN
+        ALTER TABLE public.firms_backfill_window DROP CONSTRAINT chk_firms_backfill_window_state;
+        ALTER TABLE public.firms_backfill_window ADD CONSTRAINT chk_firms_backfill_window_state
+            CHECK (processing_state IN ('PENDING', 'RUNNING', 'PUBLISHED', 'FAILED', 'SKIPPED_UNAVAILABLE'));
+    END IF;
+END $$;

@@ -137,12 +137,24 @@ class FirmsPipelineService:
         page_size = int(conf.get("batch_size", self.config.firms_backfill_batch_size))
         if not 1 <= page_size <= 100:
             raise FirmsPipelineError("FIRMS backfill batch_size must be between one and 100.")
+        availability = conf.get("availability") or self._client().fetch_availability()
+        product_ranges = {}
+        for product in products:
+            if product not in availability:
+                raise FirmsPipelineError(f"FIRMS availability is missing {product}.")
+            first = self._parse_date(availability[product].get("min_date"), "min_date")
+            last = self._parse_date(availability[product].get("max_date"), "max_date")
+            if last < first:
+                raise FirmsPipelineError(f"FIRMS availability dates are invalid for {product}.")
+            product_ranges[str(product)] = (first, last)
         rows: list[tuple[str, date, date]] = []
         for product in products:
             cursor = start
             while cursor <= end:
                 window_end = min(cursor + timedelta(days=4), end)
-                rows.append((str(product), cursor, window_end))
+                first, last = product_ranges[str(product)]
+                if window_end >= first and cursor <= last:
+                    rows.append((str(product), cursor, window_end))
                 cursor = window_end + timedelta(days=1)
         with psycopg2.connect(self.config.project_db_url) as connection:
             with connection.cursor() as cursor:
@@ -156,6 +168,29 @@ class FirmsPipelineService:
                     rows,
                     page_size=500,
                 )
+                for product, (first, last) in product_ranges.items():
+                    cursor.execute(
+                        """
+                        UPDATE firms_backfill_window
+                        SET processing_state='PENDING', last_error=NULL, updated_at=CURRENT_TIMESTAMP
+                        WHERE source_product=%s AND start_date >= %s AND end_date <= %s
+                          AND processing_state='SKIPPED_UNAVAILABLE'
+                          AND end_date >= %s AND start_date <= %s
+                        """,
+                        (product, start, end, first, last),
+                    )
+                    cursor.execute(
+                        """
+                        UPDATE firms_backfill_window
+                        SET processing_state='SKIPPED_UNAVAILABLE',
+                            last_error=%s, updated_at=CURRENT_TIMESTAMP
+                        WHERE source_product=%s AND start_date >= %s AND end_date <= %s
+                          AND processing_state IN ('PENDING', 'FAILED')
+                          AND (end_date < %s OR start_date > %s)
+                        """,
+                        (f"Outside NASA availability {first.isoformat()}..{last.isoformat()}",
+                         product, start, end, first, last),
+                    )
                 selection_year = None
                 if conf.get("yearly_batches", False):
                     cursor.execute(
