@@ -178,7 +178,7 @@
             "id",
             "gid"
           ],
-          "example": "SC-UC-0001",
+          "example": "786",
           "description": "Identificador oficial da UC na fonte. Só `uc_id` e `id_uc` contam como identificador forte; `id` e `gid` são lidos pelo pipeline, mas não identificam a UC na checagem de duplicidade.",
           "destination": "uc.uc_id"
         },
@@ -496,7 +496,7 @@
             "id",
             "gid"
           ],
-          "example": "SC-UC-0001",
+          "example": "786",
           "description": "Identificador oficial da UC na fonte. Só `uc_id` e `id_uc` contam como identificador forte; `id` e `gid` são lidos pelo pipeline, mas não identificam a UC na checagem de duplicidade.",
           "destination": "uc.uc_id"
         },
@@ -815,7 +815,7 @@
             "id",
             "gid"
           ],
-          "example": "SC-UC-0001",
+          "example": "786",
           "description": "Identificador oficial da UC na fonte. Só `uc_id` e `id_uc` contam como identificador forte; `id` e `gid` são lidos pelo pipeline, mas não identificam a UC na checagem de duplicidade.",
           "destination": "uc.uc_id"
         },
@@ -1165,7 +1165,7 @@
           "aliases": [
             "id_uc"
           ],
-          "example": "SC-UC-0001",
+          "example": "786",
           "description": "Identificador da UC na fonte da zona.",
           "destination": "za_oficial.uc_id_source"
         },
@@ -1354,7 +1354,7 @@
           "aliases": [
             "id_uc"
           ],
-          "example": "SC-UC-0001",
+          "example": "786",
           "description": "Identificador da UC na fonte da zona.",
           "destination": "za_oficial.uc_id_source"
         },
