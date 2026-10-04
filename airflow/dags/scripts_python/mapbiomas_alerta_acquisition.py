@@ -10,7 +10,7 @@ import re
 import shutil
 import tempfile
 import unicodedata
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +78,25 @@ class MapbiomasAlertaAcquisitionService:
             previous_folder, previous_manifest = None, None
             fetch_start_date = START_DATE
 
+        requested_start = conf.get("acquisition_start_date")
+        requested_end = conf.get("acquisition_end_date")
+        try:
+            if requested_start:
+                requested_start = date.fromisoformat(str(requested_start)).isoformat()
+                if requested_start < START_DATE:
+                    raise ValueError("before source historical anchor")
+                if previous_manifest is None and requested_start > START_DATE:
+                    raise ValueError("partial acquisition requires an existing full snapshot")
+                fetch_start_date = min(fetch_start_date, requested_start)
+            if requested_end:
+                requested_end = date.fromisoformat(str(requested_end)).isoformat()
+                if requested_end < fetch_start_date:
+                    raise ValueError("end precedes acquisition start")
+                if previous_manifest and requested_end < previous_manifest["max_published_at"]:
+                    raise ValueError("end precedes the existing publication checkpoint")
+        except (ValueError, KeyError):
+            raise MapbiomasAlertaAcquisitionError("Invalid explicit acquisition interval or incomplete baseline.") from None
+
         with MapbiomasAlertaClient(
             email=self.config.mapbiomas_alerta_email,
             password=self.config.mapbiomas_alerta_password,
@@ -89,12 +108,21 @@ class MapbiomasAlertaAcquisitionService:
             end_date = published_range.get("maxPublishedAt")
             if not isinstance(end_date, str) or not end_date:
                 raise MapbiomasAlertaAcquisitionError("API returned no maximum publication date.")
+            available_end_date = end_date
+            if requested_end:
+                end_date = min(end_date, requested_end)
+            if end_date < fetch_start_date:
+                raise MapbiomasAlertaAcquisitionError("Source publication availability precedes the requested start.")
+            LOGGER.info("MapBiomas Alerta API interval: %s..%s; available publication end=%s",
+                        fetch_start_date, end_date, available_end_date)
             new_records = self._fetch_all(
                 client, end_date, start_date=fetch_start_date, run_id=context.run_id
             )
 
+        previous_by_code = {}
         if previous_manifest is not None:
-            by_code = {row["alertCode"]: row for row in self._load_previous_records(previous_folder)}
+            previous_by_code = {row["alertCode"]: row for row in self._load_previous_records(previous_folder)}
+            by_code = dict(previous_by_code)
             by_code.update({row["alertCode"]: row for row in new_records})
             records = [by_code[code] for code in sorted(by_code)]
         else:
@@ -102,7 +130,22 @@ class MapbiomasAlertaAcquisitionService:
 
         canonical = [json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) for row in records]
         source_sha256 = hashlib.sha256(("\n".join(canonical) + "\n").encode("utf-8")).hexdigest()
-        if previous_manifest is not None and previous_manifest.get("source_sha256") == source_sha256:
+        unchanged = previous_manifest is not None and previous_manifest.get("source_sha256") == source_sha256
+        audit_dir = (Path(self.config.medallion_bronze_path).parent / "quality" /
+                     "mapbiomas_alerta" / "acquisition" /
+                     re.sub(r"[^A-Za-z0-9_-]", "_", context.run_id))
+        audit_dir.mkdir(parents=True, exist_ok=True)
+        audit = {
+            "run_id": context.run_id, "checked_at": datetime.now(timezone.utc).isoformat(),
+            "fetch_start_date": fetch_start_date, "fetch_end_date": end_date,
+            "available_max_published_at": available_end_date,
+            "previous_records": len(previous_by_code), "returned_records": len(new_records),
+            "new_or_changed_records": sum(previous_by_code.get(row["alertCode"]) != row for row in new_records),
+            "merged_records": len(records), "source_sha256": source_sha256,
+            "snapshot_changed": not unchanged, "territory_ids": territory_ids,
+        }
+        (audit_dir / "summary.json").write_text(json.dumps(audit, indent=2), encoding="utf-8")
+        if unchanged:
             self._discard_cache()
             LOGGER.info("MapBiomas Alerta API snapshot unchanged. records=%s sha256=%s", len(records), source_sha256[:12])
             return False

@@ -69,6 +69,7 @@ class FakeClient:
         self.calls = 0
         self.max_published_at = "2026-09-24"
         self.seen_start_dates: list[str] = []
+        self.seen_end_dates: list[str] = []
 
     def __enter__(self):
         return self
@@ -81,6 +82,7 @@ class FakeClient:
             return {"alertDateRange": {"maxPublishedAt": self.max_published_at}}
         self.calls += 1
         self.seen_start_dates.append(variables["startDate"])
+        self.seen_end_dates.append(variables["endDate"])
         page = variables["page"]
         limit = variables["limit"]
         return {
@@ -230,3 +232,38 @@ def test_invalid_wkt_is_rejected(tmp_path: Path) -> None:
     record["geometryWkt"] = "not WKT"
     with pytest.raises(MapbiomasAlertaAcquisitionError, match="invalid geometry"):
         service._to_feature(record)
+
+
+def test_explicit_recent_api_interval_preserves_history_and_records_audit(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    fake = FakeClient([_alert(1)])
+    fake.max_published_at = "2026-09-29"
+    monkeypatch.setattr(acquisition_module, "MapbiomasAlertaClient", lambda **_kwargs: fake)
+    service = MapbiomasAlertaAcquisitionService(config)
+    assert service.acquire(_context()) is True
+    new_alert = _alert(2)
+    new_alert["publishedAt"] = "2026-10-02"
+    fake.rows = [new_alert]
+    fake.max_published_at = "2026-10-05"
+    conf = {"acquisition_start_date":"2026-09-24", "acquisition_end_date":"2026-10-03"}
+    assert service.acquire(_context(conf)) is True
+    assert fake.seen_start_dates[-1] == "2026-09-24"
+    assert fake.seen_end_dates[-1] == "2026-10-03"
+    batches = sorted((Path(config.medallion_bronze_path)/"mapbiomas_alerta").iterdir())
+    manifest = json.loads((batches[-1]/"acquisition.json").read_text())
+    assert manifest["record_count"] == 2
+    assert manifest["max_published_at"] == "2026-10-03"
+    audit = json.loads((tmp_path/"quality/mapbiomas_alerta/acquisition/test__snapshot/summary.json").read_text())
+    assert audit["previous_records"] == 1
+    assert audit["returned_records"] == 1
+    assert audit["new_or_changed_records"] == 1
+    assert audit["merged_records"] == 2
+    assert audit["fetch_start_date"] == "2026-09-24"
+    assert audit["fetch_end_date"] == "2026-10-03"
+
+
+def test_partial_api_interval_requires_complete_existing_baseline(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(acquisition_module, "MapbiomasAlertaClient", lambda **kwargs: pytest.fail("API must not be called"))
+    with pytest.raises(MapbiomasAlertaAcquisitionError, match="incomplete baseline"):
+        MapbiomasAlertaAcquisitionService(_config(tmp_path)).acquire(
+            _context({"acquisition_start_date":"2026-09-24", "acquisition_end_date":"2026-10-03"}))
