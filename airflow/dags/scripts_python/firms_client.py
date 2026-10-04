@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import email.utils
+import json
+import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit, urlunsplit
 
 import requests
 
@@ -65,7 +67,7 @@ class FirmsAreaClient:
     ) -> FirmsAreaResponse:
         """Fetch one product/window and return a validated CSV response.
 
-        Retry is limited to transport failures, throttling and transient server errors.
+        Retry covers transport failures, confirmed quota exhaustion and transient errors.
         Authentication and contract errors fail immediately. Error messages and returned
         metadata never contain the MAP_KEY.
         """
@@ -73,18 +75,30 @@ class FirmsAreaClient:
             raise ValueError("FIRMS Area API day_range must be between one and five.")
         endpoint = self._endpoint(source_product, bbox, day_range, start_date, include_key=True)
         sanitized = self._endpoint(source_product, bbox, day_range, start_date, include_key=False)
-        last_error: Exception | None = None
         for attempt in range(1, self._max_attempts + 1):
             requested_at = datetime.now(timezone.utc).isoformat()
             try:
                 response = self._session.get(endpoint, timeout=self._timeout)
-            except requests.RequestException as exc:
-                last_error = exc
+            except requests.RequestException:
                 if attempt == self._max_attempts:
                     break
                 self._sleeper(min(2 ** (attempt - 1), 30))
                 continue
             received_at = datetime.now(timezone.utc).isoformat()
+            if (
+                response.status_code in {400, 429}
+                and not response.headers.get("Retry-After")
+                and attempt < self._max_attempts
+            ):
+                # FIRMS may return HTTP 400 when the shared MAP_KEY quota is exhausted.
+                # Confirm quota exhaustion; ordinary contract errors still fail immediately.
+                if self._quota_exhausted():
+                    logging.getLogger(__name__).warning(
+                        "FIRMS shared quota exhausted; waiting 610 seconds before retry %s/%s.",
+                        attempt + 1, self._max_attempts,
+                    )
+                    self._sleeper(610.0)
+                    continue
             if response.status_code in self.RETRYABLE_STATUS:
                 if attempt == self._max_attempts:
                     raise FirmsClientError(
@@ -107,7 +121,25 @@ class FirmsAreaClient:
                 received_at=received_at,
                 sanitized_endpoint=sanitized,
             )
-        raise FirmsClientError("FIRMS Area API transport failed after bounded retries.") from last_error
+        raise FirmsClientError("FIRMS Area API transport failed after bounded retries.") from None
+
+    def _quota_exhausted(self) -> bool:
+        """Check the official quota endpoint without exposing its authenticated URL."""
+        base = urlsplit(self._base_url)
+        endpoint = urlunsplit((
+            base.scheme, base.netloc, "/mapserver/mapkey_status/",
+            "MAP_KEY=" + quote(self._map_key, safe=""), "",
+        ))
+        try:
+            response = self._session.get(endpoint, timeout=self._timeout)
+            if response.status_code != 200:
+                return False
+            quota = json.loads(response.content)
+            limit = int(quota["transaction_limit"])
+            current = int(quota["current_transactions"])
+            return limit > 0 and current >= limit
+        except (requests.RequestException, ValueError, TypeError, KeyError):
+            return False
 
     def _endpoint(
         self,

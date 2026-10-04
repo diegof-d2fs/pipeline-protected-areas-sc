@@ -565,3 +565,97 @@ def test_reference_cache_rechecks_snapshot_and_detects_geometry_change(tmp_path:
     assert len(conversions) == 6
     assert len(reads) == 12  # Three fresh queries plus transaction setup, for every window.
     assert not responses
+@pytest.mark.parametrize("status", [400, 429])
+def test_client_waits_for_confirmed_shared_quota_reset(status: int) -> None:
+    sleeps: list[float] = []
+    session = FakeSession([
+        FakeResponse(status, b"rate limited"),
+        FakeResponse(200, json.dumps({"transaction_limit": 5000, "current_transactions": 5001}).encode()),
+        FakeResponse(200, CSV_HEADER.encode()),
+    ])
+    client = FirmsAreaClient(map_key="secret", base_url="https://example.test/api/area/csv",
+                             session=session, sleeper=sleeps.append)
+    response = client.fetch_csv(source_product="MODIS_SP", bbox="-54,-30,-48,-25",
+                                start_date="2020-03-26", day_range=5)
+    assert sleeps == [610.0]
+    assert len(session.calls) == 3
+    assert "mapkey_status" in session.calls[1][0]
+    assert "secret" not in response.sanitized_endpoint
+
+
+@pytest.mark.parametrize("quota", [
+    {"transaction_limit": 5000, "current_transactions": 10},
+    {"error": "invalid key"},
+    {"transaction_limit": 0, "current_transactions": 0},
+])
+def test_client_does_not_retry_http_400_without_exhausted_quota(quota: dict) -> None:
+    session = FakeSession([FakeResponse(400, b"invalid request"),
+                           FakeResponse(200, json.dumps(quota).encode())])
+    sleeps: list[float] = []
+    client = FirmsAreaClient(map_key="secret", base_url="https://example.test/api/area/csv",
+                             session=session, sleeper=sleeps.append)
+    with pytest.raises(FirmsClientError, match="HTTP 400"):
+        client.fetch_csv(source_product="MODIS_SP", bbox="-54,-30,-48,-25",
+                         start_date="2020-03-26", day_range=5)
+    assert sleeps == []
+    assert len(session.calls) == 2
+
+
+def test_client_quota_wait_is_bounded() -> None:
+    exhausted = FakeResponse(200, b'{"transaction_limit":5000,"current_transactions":5000}')
+    session = FakeSession([FakeResponse(400, b"limit"), exhausted, FakeResponse(400, b"limit")])
+    sleeps: list[float] = []
+    client = FirmsAreaClient(map_key="secret", base_url="https://example.test/api/area/csv",
+                             max_attempts=2, session=session, sleeper=sleeps.append)
+    with pytest.raises(FirmsClientError, match="HTTP 400"):
+        client.fetch_csv(source_product="MODIS_SP", bbox="-54,-30,-48,-25",
+                         start_date="2020-03-26", day_range=5)
+    assert sleeps == [610.0]
+    assert len(session.calls) == 3
+
+def test_yearly_backfill_preserves_existing_window_grid_and_recovers_failure(tmp_path: Path) -> None:
+    import os
+    from dataclasses import replace
+    from uuid import uuid4
+
+    import psycopg2
+    from psycopg2 import sql
+    from psycopg2.extensions import make_dsn
+
+    dsn = os.getenv("MUTATION_TEST_DB_URL")
+    if not dsn:
+        pytest.skip("MUTATION_TEST_DB_URL is required for the planning integration test")
+    schema = "firms_plan_test_" + uuid4().hex
+    with psycopg2.connect(dsn) as connection, connection.cursor() as cursor:
+        cursor.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
+        cursor.execute(sql.SQL("""
+            CREATE TABLE {}.firms_backfill_window (
+                source_product text NOT NULL, start_date date NOT NULL, end_date date NOT NULL,
+                processing_state text NOT NULL DEFAULT 'PENDING',
+                UNIQUE (source_product, start_date, end_date)
+            )
+        """).format(sql.Identifier(schema)))
+    try:
+        scoped_dsn = make_dsn(dsn, options="-c search_path=" + schema)
+        service = FirmsPipelineService(replace(_config(tmp_path), project_db_url=scoped_dsn))
+        context = _context({"start_date": "2020-12-28", "end_date": "2021-01-06",
+                            "products": ["MODIS_SP"], "batch_size": 100, "yearly_batches": True})
+        first = service.plan_backfill_windows(context)
+        assert [(item["window_conf"]["start_date"], item["window_conf"]["end_date"])
+                for item in first] == [("2020-12-28", "2021-01-01")]
+        with psycopg2.connect(scoped_dsn) as connection, connection.cursor() as cursor:
+            cursor.execute("UPDATE firms_backfill_window SET processing_state='FAILED' WHERE start_date='2020-12-28'")
+        assert service.plan_backfill_windows(context) == first
+        with psycopg2.connect(scoped_dsn) as connection, connection.cursor() as cursor:
+            cursor.execute("UPDATE firms_backfill_window SET processing_state='PUBLISHED' WHERE start_date='2020-12-28'")
+        second = service.plan_backfill_windows(context)
+        assert [(item["window_conf"]["start_date"], item["window_conf"]["end_date"])
+                for item in second] == [("2021-01-02", "2021-01-06")]
+        with psycopg2.connect(scoped_dsn) as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT count(*) FROM firms_backfill_window")
+            assert cursor.fetchone()[0] == 2
+            cursor.execute("UPDATE firms_backfill_window SET processing_state='PUBLISHED'")
+        assert service.plan_backfill_windows(context) == []
+    finally:
+        with psycopg2.connect(dsn) as connection, connection.cursor() as cursor:
+            cursor.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))

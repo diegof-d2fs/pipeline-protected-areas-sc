@@ -156,6 +156,19 @@ class FirmsPipelineService:
                     rows,
                     page_size=500,
                 )
+                selection_year = None
+                if conf.get("yearly_batches", False):
+                    cursor.execute(
+                        """
+                        SELECT MIN(EXTRACT(YEAR FROM start_date))
+                        FROM firms_backfill_window
+                        WHERE processing_state IN ('PENDING', 'FAILED')
+                          AND start_date >= %s AND end_date <= %s
+                          AND source_product = ANY(%s)
+                        """,
+                        (start, end, list(products)),
+                    )
+                    selection_year = cursor.fetchone()[0]
                 cursor.execute(
                     """
                     SELECT source_product, start_date, end_date
@@ -163,10 +176,11 @@ class FirmsPipelineService:
                     WHERE processing_state IN ('PENDING', 'FAILED')
                       AND start_date >= %s AND end_date <= %s
                       AND source_product = ANY(%s)
+                      AND (%s IS NULL OR EXTRACT(YEAR FROM start_date) = %s)
                     ORDER BY start_date, source_product
                     LIMIT %s
                     """,
-                    (start, end, list(products), page_size),
+                    (start, end, list(products), selection_year, selection_year, page_size),
                 )
                 pending = cursor.fetchall()
         return [

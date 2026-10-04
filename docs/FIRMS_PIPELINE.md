@@ -264,3 +264,19 @@ O snapshot cadastral é consultado de novo a cada janela, em transação somente
 com REPEATABLE READ. A conversão dos polígonos, o recorte das zonas e a preparação espacial
 são reutilizados apenas quando IDs e SHA-256 das geometrias permanecem iguais. Mudanças
 geométricas ou de áreas ativas invalidam o cache, inclusive sem alteração do número de versão.
+
+### Retomada por ano e cota compartilhada
+
+Com `yearly_batches: true`, cada página seleciona apenas o primeiro ano que ainda
+possui janelas PENDING ou FAILED. O ano é o da data inicial da janela; uma janela
+que atravessa dezembro/janeiro permanece inteira. A grade original de cinco dias,
+os manifestos e as janelas PUBLISHED são preservados. O coordenador de replay usa
+esse modo para fechar o ano corrente antes de avançar ao próximo.
+
+Em respostas HTTP 400 ou 429 sem Retry-After, o cliente consulta o endpoint oficial
+de cota. Somente quando current_transactions >= transaction_limit ele aguarda
+610 segundos e tenta novamente, dentro do limite configurado de tentativas.
+Erros de contrato continuam interrompendo a janela. A cota é compartilhada pela
+MAP_KEY entre as tarefas; a espera é registrada sem divulgar a chave ou a URL
+autenticada. Os intervalos publicados continuam disponíveis durante a espera.
+Referência: https://firms.modaps.eosdis.nasa.gov/content/academy/data_api/firms_api_use.html
