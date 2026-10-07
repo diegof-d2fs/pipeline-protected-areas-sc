@@ -74,6 +74,10 @@ class MedallionStore:
     def push(self, names: tuple[str, ...] | None = None) -> dict[str, int]:
         return {name: self._push_layer(self.layers[name]) for name in names or tuple(self.layers)}
 
+    def remote_keys(self, name: str, key_prefix: str = "") -> list[str]:
+        """List object keys of one layer without downloading them."""
+        return sorted(self._remote_index(self.layers[name], key_prefix))
+
     def pull(self, names: tuple[str, ...] | None = None, *, key_prefix: str = "") -> dict[str, int]:
         return {
             name: self._pull_layer(self.layers[name], key_prefix) for name in names or tuple(self.layers)

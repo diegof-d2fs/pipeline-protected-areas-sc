@@ -84,3 +84,43 @@ def test_shared_stage_uses_first_available_year_and_preserves_import(monkeypatch
     context = service.seed_legend_postgres.call_args.args[0]
     assert context.conf["year"] == 1989
     assert context.conf["import_id"] == "upload"
+
+
+class _BronzeBucket:
+    """Bucket listing with years published only in S3, as after an upload while the node runs."""
+
+    def __init__(self, keys):
+        self.keys = keys
+        self.pulled = []
+
+    def remote_keys(self, name, key_prefix=""):
+        assert name == "bronze"
+        return [key for key in self.keys if key.startswith(key_prefix)]
+
+    def pull(self, names, *, key_prefix=""):
+        self.pulled.append((names, key_prefix))
+        return {"bronze": 0}
+
+
+def test_discovery_includes_years_present_only_in_the_s3_bronze(tmp_path, monkeypatch):
+    service, _, context, _ = _service_with_sources(tmp_path)
+    prefix = "mapbiomas_lulc/collection=11/version=1/"
+    bucket = _BronzeBucket([
+        prefix + "year=2014/manifest.json",
+        prefix + "year=2014/brazil_coverage-col11_2014.tif",
+        prefix + "year=2024/manifest.json",
+        "mapbiomas_lulc/collection=10/version=1/year=2000/manifest.json",
+        prefix + "validation_reference/manifest.json",
+    ])
+    monkeypatch.setattr(service, "_medallion_store", lambda: bucket)
+    assert [item["year"] for item in service.discover_datasets(context)] == [2014, 2024, 2025]
+
+
+def test_bootstrap_fetches_a_missing_year_from_the_s3_bronze_before_use(tmp_path, monkeypatch):
+    service, source, context, dataset = _service_with_sources(tmp_path)
+    bucket = _BronzeBucket([])
+    monkeypatch.setattr(service, "_medallion_store", lambda: bucket)
+    service.bootstrap_bronze(context)
+    assert bucket.pulled == [(("bronze",), "mapbiomas_lulc/" + "/".join(dataset.partition) + "/")]
+    service.bootstrap_bronze(context)
+    assert len(bucket.pulled) == 1

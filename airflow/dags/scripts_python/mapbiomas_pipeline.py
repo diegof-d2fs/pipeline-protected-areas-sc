@@ -31,6 +31,7 @@ from shapely.geometry import shape
 from scripts_python.config import PipelineConfig
 from scripts_python.domain_pipeline import TaskExecutionContext
 from scripts_python.manifest_input import load_manifest_input
+from scripts_python.object_storage import MedallionStore
 
 
 class MapbiomasPipelineError(RuntimeError):
@@ -164,6 +165,15 @@ class MapbiomasPipelineService:
             match = re.fullmatch(r"year=(\d{4})", path.parent.name)
             if match:
                 years.add(int(match[1]))
+        # On AWS the S3 Bronze is the source of truth; the local disk is only a cache refreshed
+        # when the node boots, so a year uploaded while it runs exists only in the bucket.
+        store = self._medallion_store()
+        if store is not None:
+            prefix = f"mapbiomas_lulc/collection={dataset.collection}/version={dataset.version}/"
+            for key in store.remote_keys("bronze", prefix):
+                match = re.fullmatch(re.escape(prefix) + r"year=(\d{4})/manifest\.json", key)
+                if match:
+                    years.add(int(match[1]))
         if self.config.project_db_url:
             with psycopg2.connect(self.config.project_db_url) as conn:
                 with conn.cursor() as cur:
@@ -178,6 +188,10 @@ class MapbiomasPipelineService:
         if any(year < 1985 or year > 2100 for year in years):
             raise MapbiomasPipelineError("Available MapBiomas year is outside the supported range.")
         return [{"collection": dataset.collection, "version": dataset.version, "year": year} for year in sorted(years)]
+
+    def _medallion_store(self) -> MedallionStore | None:
+        """S3 mirror of the Medallion, or None when the pipeline runs local-only."""
+        return MedallionStore.from_config(self.config)
 
     def _bronze_lulc_dir(self, dataset: MapbiomasDataset) -> Path:
         """Bronze partition holding the immutable MapBiomas package for one year."""
@@ -210,6 +224,10 @@ class MapbiomasPipelineService:
         """Publish source packages atomically and return their immutable manifests."""
         dataset = self._dataset(context)
         source = Path(self.config.mapbiomas_source_dir)
+        store = self._medallion_store()
+        if store is not None and not (self._bronze_lulc_dir(dataset) / "manifest.json").is_file():
+            # A year published only in the S3 Bronze is brought to the local cache before use.
+            store.pull(("bronze",), key_prefix="mapbiomas_lulc/" + "/".join(dataset.partition) + "/")
         # Published packages remain usable when the raw landing has been removed.
         if (self._bronze_lulc_dir(dataset) / "manifest.json").is_file() and not any(
             (directory / dataset.source_raster_name).is_file() for directory in (source, source / "tifs")
