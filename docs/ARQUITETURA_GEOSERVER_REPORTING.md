@@ -35,7 +35,11 @@ Papéis:
 - `reporting_readonly` (`NOLOGIN`): `USAGE` em `reporting` e `SELECT` nas views (inclusive nas
   futuras, por `ALTER DEFAULT PRIVILEGES`);
 - `geoserver_svc` e `powerbi_svc` (`LOGIN`, membros do grupo): `search_path = reporting, public`,
-  transação somente leitura por padrão, `statement_timeout = 120s`, limite de 20 e 10 conexões.
+  transação somente leitura por padrão, `statement_timeout = 120s`, limite de 20 e 10 conexões;
+- `lab_svc` (`LOGIN`, membro do grupo, migração `007_reporting_lab_login.sql`): login fixo do
+  grupo do laboratório para Power BI e clientes SQL, com os mesmos parâmetros, mas
+  `statement_timeout = 220s` e limite de 12 conexões. Participantes de oficina usam o login do
+  modo eventos.
 
 `public` mantém `USAGE` apenas para resolver as funções PostGIS; nenhuma tabela de `public` é
 concedida. As views pertencem ao dono das tabelas, por isso o consumidor só precisa de `SELECT`
@@ -43,7 +47,8 @@ nelas. A proteção vale por privilégio, não só pela transação somente leit
 `CREATE`, `UPDATE` e `DELETE` são negados.
 
 Senhas: a migration cria os logins sem senha (login impossível). `api-migrate` aplica
-`PA_SC_REPORTING_GEOSERVER_DB_PASSWORD` e `PA_SC_REPORTING_POWERBI_DB_PASSWORD` do `.env` da API
+`PA_SC_REPORTING_GEOSERVER_DB_PASSWORD`, `PA_SC_REPORTING_POWERBI_DB_PASSWORD` e
+`PA_SC_REPORTING_LAB_DB_PASSWORD` do `.env` da API
 a cada execução; variável vazia mantém o login bloqueado. O GeoServer recebe a mesma senha por
 `REPORTING_GEOSERVER_DB_PASSWORD` no `.env` do pipeline.
 
