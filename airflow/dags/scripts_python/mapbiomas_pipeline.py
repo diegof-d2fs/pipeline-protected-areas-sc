@@ -376,14 +376,26 @@ class MapbiomasPipelineService:
             raise MapbiomasPipelineError("Directed MapBiomas processing requires import_id.")
         return ("imports", "import=" + hashlib.sha256(import_id.encode()).hexdigest())
 
+    def _artifact_partition(self, context: TaskExecutionContext) -> tuple[str, ...]:
+        """Isolate the AOI snapshot and statistics of each run.
+
+        A directed run uses its import partition. A full run gets its own partition per run_id:
+        its snapshot freezes the areas active when the run starts, and a retry of the same run
+        replays what it already committed, while a later full run never reuses an older snapshot.
+        """
+        partition = self._cadastral_partition(context)
+        if partition:
+            return partition
+        return ("runs", "run=" + hashlib.sha256(context.run_id.encode()).hexdigest())
+
     def _aoi_snapshot_dir(self, context: TaskExecutionContext) -> Path:
-        partition = self._cadastral_partition(context) or ("version=1",)
+        partition = self._artifact_partition(context)
         return Path(self.config.medallion_silver_path) / "mapbiomas_lulc" / "aoi_snapshot" / Path(*partition)
 
     def _statistics_dir(self, context: TaskExecutionContext, *, gold: bool = False) -> Path:
         root = self.config.medallion_gold_path if gold else self.config.medallion_silver_path
         folder = "statistics" if gold else "area_statistics"
-        return Path(root) / "mapbiomas_lulc" / folder / Path(*self._dataset(context).partition) / Path(*self._cadastral_partition(context))
+        return Path(root) / "mapbiomas_lulc" / folder / Path(*self._dataset(context).partition) / Path(*self._artifact_partition(context))
 
     def _directed_aoi_records(self, context: TaskExecutionContext) -> list[dict[str, Any]]:
         """Resolve each manifest feature to its committed UC and active surroundings.

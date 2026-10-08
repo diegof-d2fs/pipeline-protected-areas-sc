@@ -55,11 +55,7 @@ def test_import_snapshot_includes_three_ucs_and_exclusive_zones(tmp_path, monkey
     assert not (service._aoi_snapshot_dir(TaskExecutionContext("x", "x", "x", "x", {}))).exists()
 
 
-@pytest.mark.parametrize("point", [False, True])
-def test_statistics_recompute_for_new_import_and_do_not_invent_point_area(tmp_path, monkeypatch, point):
-    service, dataset = _buffer_snapshot(tmp_path, monkeypatch, point=point)
-    context = _context()
-    service.build_aoi_snapshot(context)
+def _silver_forest_raster(service, dataset):
     silver = service._silver_lulc_dir(dataset)
     silver.mkdir(parents=True)
     legend = [{"class_id": 3, "class_name_pt_br": "Floresta", "class_name_en": "Forest", "hex_code": "#008800"}]
@@ -67,6 +63,38 @@ def test_statistics_recompute_for_new_import_and_do_not_invent_point_area(tmp_pa
     with rasterio.open(silver / dataset.silver_raster_name, "w", driver="GTiff", width=100, height=100,
                        count=1, dtype="uint8", crs=4326, transform=from_origin(-49.5, -26.9, 0.01, 0.01), nodata=0) as raster:
         raster.write(np.full((100, 100), 3, dtype="uint8"), 1)
+
+
+def _full_run(run_id):
+    return TaskExecutionContext("DAG_MAPBIOMAS", "test", "2026-10-07", run_id, {})
+
+
+def test_full_runs_get_their_own_snapshot_and_coexist_with_import_statistics(tmp_path, monkeypatch):
+    service, dataset = _buffer_snapshot(tmp_path, monkeypatch)
+    directed = _context()
+    service.build_aoi_snapshot(directed)
+    _silver_forest_raster(service, dataset)
+    service.compute_area_statistics(directed)
+    full, later = _full_run("replay__mapbiomas__a"), _full_run("replay__mapbiomas__b")
+    # A later full run never replays the areas frozen by an earlier one.
+    assert service._aoi_snapshot_dir(full) != service._aoi_snapshot_dir(later)
+    assert service._aoi_snapshot_dir(full) != service._aoi_snapshot_dir(directed)
+    full_snapshot = service._aoi_snapshot_dir(full)
+    full_snapshot.mkdir(parents=True)
+    source = service._aoi_snapshot_dir(directed) / "mapbiomas_aoi_snapshot.geojson"
+    (full_snapshot / source.name).write_bytes(source.read_bytes())
+    # The year folder already holds an import partition; the full run must not take it as an
+    # uncommitted write of its own.
+    assert service.compute_area_statistics(full)["status"] == "published"
+    assert service.compute_area_statistics(full)["status"] == "replayed"
+
+
+@pytest.mark.parametrize("point", [False, True])
+def test_statistics_recompute_for_new_import_and_do_not_invent_point_area(tmp_path, monkeypatch, point):
+    service, dataset = _buffer_snapshot(tmp_path, monkeypatch, point=point)
+    context = _context()
+    service.build_aoi_snapshot(context)
+    _silver_forest_raster(service, dataset)
     result = service.compute_area_statistics(context)
     assert result["record_count"] == (3 if point else 6)
     assert len(result["aois_without_selected_pixels"]) == (3 if point else 0)
