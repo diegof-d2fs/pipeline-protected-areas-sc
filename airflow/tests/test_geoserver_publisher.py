@@ -43,6 +43,27 @@ class GeoServerPublisherTest(unittest.TestCase):
                 self.assertLess(box["minx"], box["maxx"])
                 self.assertLess(box["miny"], box["maxy"])
 
+    def test_services_keep_full_numeric_precision(self) -> None:
+        class FakeGeoServer:
+            def __init__(self) -> None:
+                self.settings = {"global": {"settings": {"numDecimals": 4, "charset": "UTF-8"}}}
+                self.puts = []
+
+            def request(self, method, path, body=None, **kwargs):
+                if method == "GET" and path == "/rest/settings.json":
+                    import json
+                    return 200, json.dumps(self.settings).encode()
+                if method == "PUT":
+                    self.puts.append((path, body))
+                return 200, b""
+
+        geoserver = FakeGeoServer()
+        self.module.harden_services(geoserver)
+        settings_puts = [body for path, body in geoserver.puts if path == "/rest/settings.json"]
+        self.assertEqual(len(settings_puts), 1)
+        self.assertEqual(settings_puts[0]["global"]["settings"]["numDecimals"], 8)
+        self.assertEqual(settings_puts[0]["global"]["settings"]["charset"], "UTF-8")
+
     def test_sync_dag_imports_publisher(self) -> None:
         from airflow.models import DagBag
 

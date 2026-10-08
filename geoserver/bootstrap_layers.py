@@ -38,6 +38,10 @@ RASTER_STYLE = "mapbiomas_uso_cobertura"
 RASTER_QML = ROOT / "styles" / "ESTILO_QGIS_COL11_PT.qml"
 GOLD_MOUNT = "/data/gold"
 NATIVE_SRS = "EPSG:4674"
+# Casas decimais de coordenadas e números no WFS (GML, GeoJSON, CSV). O padrão do GeoServer (4)
+# arredonda coordenadas em graus a cerca de 11 m e corta áreas e razões; 8 casas ficam abaixo
+# de 1 mm e preservam a precisão das colunas numéricas.
+NUM_DECIMALS = 8
 
 
 @dataclass(frozen=True)
@@ -487,16 +491,19 @@ def refresh_caches(geoserver: GeoServer, layers: list[str]) -> None:
 def harden_services(geoserver: GeoServer) -> None:
     # Somente leitura também na borda OGC: WFS sem Transaction/LockFeature.
     geoserver.request("PUT", "/rest/services/wfs/settings.json", {"wfs": {"serviceLevel": "BASIC"}})
+    # O PUT de /rest/settings substitui o objeto inteiro: campos omitidos seriam zerados.
+    _, payload = geoserver.request("GET", "/rest/settings.json")
+    settings = json.loads(payload)
+    current = settings["global"]["settings"]
+    wanted = {"numDecimals": NUM_DECIMALS}
     # Atrás do domínio público, os documentos de capacidades devem anunciar o endereço externo,
     # não o IP interno do nó de serviço.
     proxy_base_url = os.environ.get("GEOSERVER_PROXY_BASE_URL")
     if proxy_base_url:
-        # O PUT de /rest/settings substitui o objeto inteiro: campos omitidos seriam zerados.
-        _, payload = geoserver.request("GET", "/rest/settings.json")
-        settings = json.loads(payload)
-        if settings["global"]["settings"].get("proxyBaseUrl") != proxy_base_url:
-            settings["global"]["settings"]["proxyBaseUrl"] = proxy_base_url
-            geoserver.request("PUT", "/rest/settings.json", settings)
+        wanted["proxyBaseUrl"] = proxy_base_url
+    if any(current.get(key) != value for key, value in wanted.items()):
+        current.update(wanted)
+        geoserver.request("PUT", "/rest/settings.json", settings)
 
 
 def publish_all(gold_root: Path) -> list[str]:
