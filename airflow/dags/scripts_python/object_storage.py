@@ -176,12 +176,20 @@ def push_quality(config: PipelineConfig) -> None:
         store.push(("quality",))
 
 
-def fetch_bronze_batch(config: PipelineConfig, manifest_key: str) -> None:
-    """Bring one API-published Bronze batch to the local cache (no-op when S3 is not configured)."""
+def fetch_bronze_prefix(config: PipelineConfig, key_prefix: str) -> None:
+    """Bring the Bronze objects under a prefix to the local cache (no-op when S3 is not configured).
+
+    On AWS the bucket is the source of truth and the node disk is a cache refreshed at boot; a
+    batch uploaded to the bucket while the node runs reaches the disk only through this call.
+    """
     store = MedallionStore.from_config(config)
     if store is not None:
-        batch_prefix = manifest_key.rsplit("/", 1)[0] + "/"
-        store.pull(("bronze",), key_prefix=batch_prefix)
+        store.pull(("bronze",), key_prefix=key_prefix)
+
+
+def fetch_bronze_batch(config: PipelineConfig, manifest_key: str) -> None:
+    """Bring one API-published Bronze batch to the local cache (no-op when S3 is not configured)."""
+    fetch_bronze_prefix(config, manifest_key.rsplit("/", 1)[0] + "/")
 
 
 def main() -> None:

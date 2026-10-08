@@ -163,6 +163,43 @@ def test_published_shapefile_satisfies_existing_extract_validate_and_date_mappin
     assert str(mapped.iloc[0]["dt_imagem_posterior"]) == "2026-09-01"
 
 
+def test_extract_uses_a_batch_present_only_in_the_s3_bronze(tmp_path: Path, monkeypatch) -> None:
+    config = _config(tmp_path)
+    root = Path(config.medallion_bronze_path) / "mapbiomas_alerta"
+    root.mkdir(parents=True)
+    record = _alert(789)
+    canonical = [json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":"))]
+    pulled = []
+
+    def fake_fetch(fetch_config, key_prefix):
+        # Simulates the download of a batch uploaded to the bucket while the node runs.
+        pulled.append(key_prefix)
+        MapbiomasAlertaAcquisitionService(fetch_config)._publish(root, _context(), [record], canonical, "s3-sha", "2026-10-01")
+
+    monkeypatch.setattr("scripts_python.mapbiomas_alerta_pipeline.fetch_bronze_prefix", fake_fetch)
+    extracted = MapbiomasAlertaPipelineService(config).extract(_context())
+    assert pulled == ["mapbiomas_alerta/"]
+    assert Path(extracted["shapefile_path"]).is_file()
+
+
+def test_prodes_extract_refreshes_the_bronze_prefix_before_selecting_a_batch(tmp_path: Path, monkeypatch) -> None:
+    from scripts_python.prodes_pipeline import ProdesPipelineService
+
+    config = _config(tmp_path)
+    Path(config.medallion_bronze_path).mkdir(parents=True, exist_ok=True)
+
+    class Refreshed(Exception):
+        pass
+
+    def fake_fetch(fetch_config, key_prefix):
+        assert key_prefix == "prodes/"
+        raise Refreshed
+
+    monkeypatch.setattr("scripts_python.prodes_pipeline.fetch_bronze_prefix", fake_fetch)
+    with pytest.raises(Refreshed):
+        ProdesPipelineService(config).extract(_context())
+
+
 def test_directed_run_does_not_access_api(tmp_path: Path) -> None:
     service = MapbiomasAlertaAcquisitionService(_config(tmp_path))
     assert service.acquire(_context({"manifest_key": "uc/batch/manifest.json"})) is True

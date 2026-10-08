@@ -20,6 +20,7 @@ from shapely import wkb
 from shapely.geometry import GeometryCollection, MultiPolygon, Polygon
 
 from scripts_python.config import PipelineConfig
+from scripts_python.object_storage import fetch_bronze_prefix
 from scripts_python.domain_pipeline import DomainPipelineService, TaskExecutionContext
 
 LOGGER = logging.getLogger("pipeline.prodes")
@@ -96,6 +97,8 @@ class ProdesPipelineService(DomainPipelineService):
                 f"Bronze root does not exist for {self.domain_name}: {source_root}"
             )
 
+        # The newest batch may exist only in the S3 Bronze (uploaded while the node runs).
+        fetch_bronze_prefix(self.config, f"{self.domain_name}/")
         bronze = self._select_bronze_batch(source_root)
         run_dir = self._run_dir(context)
         run_dir.mkdir(parents=True, exist_ok=True)
