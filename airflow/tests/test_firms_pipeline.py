@@ -389,6 +389,22 @@ def test_recross_without_published_history_does_nothing(tmp_path: Path) -> None:
     assert summary["inserted_relations"] == 0
 
 
+def test_recross_first_brings_the_published_silver_from_s3(tmp_path: Path) -> None:
+    service = FirmsPipelineService(_config(tmp_path))
+    pulled = []
+
+    class Bucket:
+        def pull(self, names, *, key_prefix=""):
+            pulled.append((names, key_prefix))
+            return {"silver": 0}
+
+    service._medallion_store = lambda: Bucket()
+    service.recross_published(
+        TaskExecutionContext("DAG_FIRMS_RECROSS", "recross_published", "2026-10-07", "chain__z", {})
+    )
+    assert pulled == [(("silver",), "firms/")]
+
+
 def test_cadastral_chains_trigger_firms_recross() -> None:
     dag_bag = DagBag(include_examples=False)
     assert not dag_bag.import_errors

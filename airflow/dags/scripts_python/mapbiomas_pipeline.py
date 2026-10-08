@@ -117,7 +117,6 @@ class MapbiomasPipelineService:
         "limites_SC.shx",
     )
     COPY_BUFFER_SIZE = 1024 * 1024
-    ZA_ADJACENCY_TOLERANCE_METERS = 0.01
     RECONCILIATION_TOTAL_TOLERANCE_PCT = 0.5
     RECONCILIATION_NON_AQUATIC_TOLERANCE_PCT = 0.1
     BETA_CLASS_IDS = frozenset({7, 62, 84, 91})
@@ -466,16 +465,52 @@ class MapbiomasPipelineService:
                     records.append({"id_uc": int(id_uc), "aoi_type": kind, "zone_id": int(zone_id), "geometry": shape(json.loads(geometry))})
         return records
 
-    def _build_directed_aoi_snapshot(self, context: TaskExecutionContext) -> dict[str, Any]:
+    # Every active UC with its active zones (ZA oficial or Buffer de Abrangência); `zones` must be 1.
+    ACTIVE_AOI_SQL = """
+        SELECT u.id_uc, ST_AsGeoJSON(u.geom), z.kind, z.zone_id, ST_AsGeoJSON(z.geom), coalesce(z.zones, 0)
+        FROM uc u
+        LEFT JOIN LATERAL (
+            SELECT kind, zone_id, geom, count(*) OVER () AS zones
+            FROM (
+                SELECT 'ZA' AS kind, id_za_oficial AS zone_id, geom
+                FROM za_oficial WHERE id_uc = u.id_uc AND fl_ativa
+                UNION ALL
+                SELECT 'BUFFER_ABRANGENCIA', id_buffer_abrangencia, geom
+                FROM buffer_abrangencia WHERE id_uc = u.id_uc AND fl_ativa
+            ) active_zones
+        ) z ON TRUE
+        WHERE u.situacao = 'ATIVA'
+        ORDER BY u.id_uc, z.kind;
+    """
+
+    def _active_aoi_records(self) -> list[dict[str, Any]]:
+        """Every active UC with its single active ZA or Buffer de Abrangência, read from PostGIS."""
+        records = []
+        with psycopg2.connect(self.config.project_db_url) as conn:
+            conn.set_session(isolation_level="REPEATABLE READ", readonly=True)
+            with conn.cursor() as cur:
+                cur.execute(self.ACTIVE_AOI_SQL)
+                rows = cur.fetchall()
+        if not rows:
+            raise MapbiomasPipelineError("No active UC is committed for the MapBiomas snapshot.")
+        for id_uc, uc_geometry, kind, zone_id, zone_geometry, zones in rows:
+            if zones != 1:
+                raise MapbiomasPipelineError(f"UC {id_uc} must have exactly one active ZA or Buffer de Abrangência before MapBiomas.")
+            records.append({"id_uc": int(id_uc), "aoi_type": "UC", "zone_id": 0, "geometry": shape(json.loads(uc_geometry))})
+            records.append({"id_uc": int(id_uc), "aoi_type": kind, "zone_id": int(zone_id), "geometry": shape(json.loads(zone_geometry))})
+        return records
+
+    def _build_aoi_snapshot(self, context: TaskExecutionContext) -> dict[str, Any]:
         output_dir = self._aoi_snapshot_dir(context)
         manifest_path = output_dir / "manifest.json"
         snapshot_path = output_dir / "mapbiomas_aoi_snapshot.geojson"
         if manifest_path.is_file():
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             if self._sha256(snapshot_path) != manifest["checksum_sha256"]:
-                raise MapbiomasPipelineError("Directed AOI snapshot checksum mismatch.")
+                raise MapbiomasPipelineError("AOI snapshot checksum mismatch.")
             return {"status": "replayed", **manifest}
-        records = self._directed_aoi_records(context)
+        directed = bool(self._cadastral_partition(context))
+        records = self._directed_aoi_records(context) if directed else self._active_aoi_records()
         frame = gpd.GeoDataFrame(records, geometry="geometry", crs=4674).to_crs(31982)
         boundary = gpd.read_file(self._boundary_dir() / "limites_SC.geojson").to_crs(31982)
         state_geometry = make_valid(boundary.geometry.unary_union)
@@ -487,12 +522,12 @@ class MapbiomasPipelineService:
             frame.at[index, "geometry"] = geometry.intersection(state_geometry)
         frame = frame[~frame.geometry.is_empty].to_crs(4326)
         if frame.empty:
-            raise MapbiomasPipelineError("No imported AOI intersects Santa Catarina.")
+            raise MapbiomasPipelineError("No AOI intersects Santa Catarina.")
         output_dir.mkdir(parents=True, exist_ok=True)
         frame.to_file(snapshot_path, driver="GeoJSON")
         manifest = {
             "schema_version": 1, "domain": "mapbiomas_aoi_snapshot",
-            "identity_kind": "postgis_id_uc", "import_id": (context.conf or {})["import_id"],
+            "identity_kind": "postgis_id_uc", "import_id": (context.conf or {}).get("import_id") if directed else None,
             "aoi_count": len(frame), "uc_count": int(frame["id_uc"].nunique()),
             "counts_by_type": frame["aoi_type"].value_counts().to_dict(),
             "checksum_sha256": self._sha256(snapshot_path), "run_id": context.run_id,
@@ -502,69 +537,13 @@ class MapbiomasPipelineService:
         return {"status": "published", **manifest}
 
     def build_aoi_snapshot(self, context: TaskExecutionContext) -> dict[str, Any]:
-        """Derive exclusive UC, official ZA and Buffer de Abrangência AOIs from Bronze sources.
+        """Freeze the exclusive UC, official ZA and Buffer de Abrangência AOIs committed in PostGIS.
 
-        Legacy yearly runs reuse ``aoi_snapshot/version=1``. API-directed runs
-        freeze the committed UC/zone geometries in a separate import partition.
+        A directed run freezes the UCs of its import; a full run freezes every active UC with its
+        active zone, including UCs registered through the API. Retries of the same run replay the
+        frozen snapshot.
         """
-        if self._cadastral_partition(context):
-            return self._build_directed_aoi_snapshot(context)
-        bronze = Path(self.config.medallion_bronze_path)
-        output_dir = Path(self.config.medallion_silver_path) / "mapbiomas_lulc" / "aoi_snapshot" / "version=1"
-        manifest_path = output_dir / "manifest.json"
-        if manifest_path.is_file():
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            return {"status": "replayed", **manifest}
-        if output_dir.exists():
-            raise MapbiomasPipelineError(f"Uncommitted AOI snapshot requires explicit cleanup: {output_dir}")
-        uc_files = [path for path in (bronze / "ucs").rglob("*") if path.suffix.lower() in {".shp", ".geojson"} and "import_id=" not in path.as_posix()]
-        za_files = [path for path in (bronze / "za").rglob("*.shp") if "import_id=" not in path.as_posix()]
-        if not uc_files or not za_files:
-            raise MapbiomasPipelineError("Bronze UC or ZA sources are unavailable for AOI snapshot.")
-        boundary_path = self._boundary_dir() / "limites_SC.geojson"
-        if not boundary_path.is_file():
-            raise MapbiomasPipelineError("Bronze IBGE Santa Catarina boundary is unavailable for AOI snapshot.")
-        boundary = gpd.read_file(boundary_path).to_crs(31982)
-        state_geometry = make_valid(boundary.geometry.unary_union)
-        ucs = gpd.GeoDataFrame(pd.concat([gpd.read_file(path) for path in uc_files], ignore_index=True), crs=gpd.read_file(uc_files[0]).crs)
-        ucs["id_uc"] = pd.to_numeric(ucs["uc_id"], errors="raise").astype("int64")
-        ucs = ucs.drop_duplicates(subset=["id_uc"], keep="last").to_crs(31982)
-        ucs["geometry"] = ucs.geometry.apply(make_valid)
-        buffer = gpd.GeoDataFrame(pd.concat([gpd.read_file(path) for path in za_files], ignore_index=True), crs=gpd.read_file(za_files[0]).crs).to_crs(31982)
-        buffer["geometry"] = buffer.geometry.apply(make_valid)
-        selected: dict[int, tuple[int, object]] = {}
-        for za_index, za_row in buffer.iterrows():
-            overlaps = ucs.geometry.intersection(za_row.geometry).area
-            if overlaps.max() > 0:
-                selected[int(za_index)] = (int(ucs.iloc[int(overlaps.argmax())].id_uc), za_row.geometry)
-                continue
-            distances = ucs.geometry.distance(za_row.geometry)
-            if distances.min() <= self.ZA_ADJACENCY_TOLERANCE_METERS:
-                selected[int(za_index)] = (int(ucs.iloc[int(distances.argmin())].id_uc), za_row.geometry)
-        records: list[dict[str, Any]] = []
-        selected_by_uc = {uc_id: geometry for uc_id, geometry in selected.values()}
-        for _, uc in ucs.iterrows():
-            uc_geometry = uc.geometry.intersection(state_geometry)
-            if uc_geometry.is_empty:
-                continue
-            records.append({"id_uc": int(uc.id_uc), "aoi_type": "UC", "geometry": uc_geometry})
-            official = selected_by_uc.get(int(uc.id_uc))
-            if official is not None:
-                za_geometry = official.difference(uc.geometry).intersection(state_geometry)
-                if not za_geometry.is_empty:
-                    records.append({"id_uc": int(uc.id_uc), "aoi_type": "ZA", "geometry": za_geometry})
-            else:
-                buffer_geometry = uc.geometry.buffer(3000).difference(uc.geometry).intersection(state_geometry)
-                if not buffer_geometry.is_empty:
-                    records.append({"id_uc": int(uc.id_uc), "aoi_type": "BUFFER_ABRANGENCIA", "geometry": buffer_geometry})
-        snapshot = gpd.GeoDataFrame(records, geometry="geometry", crs=31982)
-        snapshot = snapshot[~snapshot.geometry.is_empty].to_crs(4326)
-        output_dir.mkdir(parents=True)
-        snapshot_path = output_dir / "mapbiomas_aoi_snapshot.geojson"
-        snapshot.to_file(snapshot_path, driver="GeoJSON")
-        manifest = {"schema_version": 1, "domain": "mapbiomas_aoi_snapshot", "aoi_count": len(snapshot), "uc_count": int(snapshot["id_uc"].nunique()), "counts_by_type": snapshot["aoi_type"].value_counts().to_dict(), "checksum_sha256": self._sha256(snapshot_path), "run_id": context.run_id, "created_at": datetime.now(timezone.utc).isoformat()}
-        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        return {"status": "published", **manifest}
+        return self._build_aoi_snapshot(context)
 
     def compute_area_statistics(self, context: TaskExecutionContext) -> dict[str, Any]:
         """Aggregate MapBiomas classes by exclusive AOI using ellipsoidal pixel areas."""
@@ -1001,7 +980,7 @@ class MapbiomasPipelineService:
     def load_area_statistics_postgres(self, context: TaskExecutionContext) -> dict[str, Any]:
         """Load the Gold area-by-AOI statistics for one dataset into ``mapbiomas_clip``.
 
-        Resolves the external UC identifier to ``uc.id_uc``, the active
+        Maps the snapshot ``id_uc`` to the active UC, the active
         ``id_za_oficial``/``id_buffer_abrangencia`` per AOI type, the legend class and the raster
         asset, then inserts one fact row per class per AOI. Idempotent through the
         natural unique index.
@@ -1018,13 +997,11 @@ class MapbiomasPipelineService:
         cog_checksum = gold_manifest["raster_checksum_sha256"]
         snapshot_dir = self._aoi_snapshot_dir(context)
         geometry_index, geometry_version = self._aoi_geometry_index(snapshot_dir)
-        snapshot_zones = {}
-        if self._cadastral_partition(context):
-            snapshot = json.loads((snapshot_dir / "mapbiomas_aoi_snapshot.geojson").read_text(encoding="utf-8"))
-            snapshot_zones = {
-                (int(feature["properties"]["id_uc"]), feature["properties"]["aoi_type"]): int(feature["properties"]["zone_id"])
-                for feature in snapshot["features"]
-            }
+        snapshot = json.loads((snapshot_dir / "mapbiomas_aoi_snapshot.geojson").read_text(encoding="utf-8"))
+        snapshot_zones = {
+            (int(feature["properties"]["id_uc"]), feature["properties"]["aoi_type"]): int(feature["properties"]["zone_id"])
+            for feature in snapshot["features"]
+        }
 
         frame = pd.read_parquet(parquet_path)
         with psycopg2.connect(self.config.project_db_url) as conn:
@@ -1039,14 +1016,11 @@ class MapbiomasPipelineService:
                         "Raster asset for this dataset is not loaded; run load_raster_postgres first."
                     )
                 asset_id = int(asset_row[0])
-                cur.execute("SELECT id_uc, uc_id FROM uc WHERE uc_id IS NOT NULL AND situacao = 'ATIVA' ORDER BY id_uc FOR SHARE;")
-                uc_by_external = {str(uc_id): int(id_uc) for id_uc, uc_id in cur.fetchall()}
-                directed = bool(self._cadastral_partition(context))
-                if directed:
-                    cur.execute("SELECT id_uc FROM uc WHERE situacao = 'ATIVA' ORDER BY id_uc FOR SHARE;")
-                    uc_by_external = {str(row[0]): int(row[0]) for row in cur.fetchall()}
-                cur.execute("SELECT id_uc, uc_id FROM uc WHERE situacao = 'EXTINTA';")
-                extinct_ids = {str(row[0] if directed else row[1]) for row in cur.fetchall()}
+                # The snapshot carries the internal PostGIS id_uc in both directed and full runs.
+                cur.execute("SELECT id_uc FROM uc WHERE situacao = 'ATIVA' ORDER BY id_uc FOR SHARE;")
+                uc_by_external = {str(row[0]): int(row[0]) for row in cur.fetchall()}
+                cur.execute("SELECT id_uc FROM uc WHERE situacao = 'EXTINTA';")
+                extinct_ids = {str(row[0]) for row in cur.fetchall()}
                 cur.execute("SELECT id_uc, id_za_oficial FROM za_oficial WHERE fl_ativa;")
                 za_by_uc = {int(id_uc): int(id_za) for id_uc, id_za in cur.fetchall()}
                 cur.execute("SELECT id_uc, id_buffer_abrangencia FROM buffer_abrangencia WHERE fl_ativa;")
@@ -1074,7 +1048,7 @@ class MapbiomasPipelineService:
                     id_uc = uc_by_external[str(external_uc)]
                     id_za_oficial = za_by_uc.get(id_uc) if aoi_type == "ZA" else None
                     id_buffer_abrangencia = buffer_by_uc.get(id_uc) if aoi_type == "BUFFER_ABRANGENCIA" else None
-                    if directed and aoi_type != "UC" and snapshot_zones.get((id_uc, aoi_type)) != (id_za_oficial or id_buffer_abrangencia):
+                    if aoi_type != "UC" and snapshot_zones.get((id_uc, aoi_type)) != (id_za_oficial or id_buffer_abrangencia):
                         raise MapbiomasPipelineError("Active zone changed after the cadastral snapshot; submit a new reprocessing run.")
                     if aoi_type == "ZA" and id_za_oficial is None:
                         raise MapbiomasPipelineError(f"No active ZA for UC {external_uc} required by a ZA statistic row.")

@@ -69,24 +69,53 @@ def _full_run(run_id):
     return TaskExecutionContext("DAG_MAPBIOMAS", "test", "2026-10-07", run_id, {})
 
 
-def test_full_runs_get_their_own_snapshot_and_coexist_with_import_statistics(tmp_path, monkeypatch):
+def _active_records(ids):
+    records = []
+    for index, id_uc in enumerate(ids):
+        x = -49.3 + index * 0.1
+        uc = box(x, -27.12, x + 0.02, -27.1)
+        records.extend([
+            {"id_uc": id_uc, "aoi_type": "UC", "zone_id": 0, "geometry": uc},
+            {"id_uc": id_uc, "aoi_type": "BUFFER_ABRANGENCIA", "zone_id": 200 + id_uc, "geometry": uc.buffer(0.02)},
+        ])
+    return records
+
+
+def test_full_run_freezes_every_active_uc_including_those_registered_later(tmp_path, monkeypatch):
     service, dataset = _buffer_snapshot(tmp_path, monkeypatch)
     directed = _context()
     service.build_aoi_snapshot(directed)
     _silver_forest_raster(service, dataset)
     service.compute_area_statistics(directed)
-    full, later = _full_run("replay__mapbiomas__a"), _full_run("replay__mapbiomas__b")
-    # A later full run never replays the areas frozen by an earlier one.
-    assert service._aoi_snapshot_dir(full) != service._aoi_snapshot_dir(later)
-    assert service._aoi_snapshot_dir(full) != service._aoi_snapshot_dir(directed)
-    full_snapshot = service._aoi_snapshot_dir(full)
-    full_snapshot.mkdir(parents=True)
-    source = service._aoi_snapshot_dir(directed) / "mapbiomas_aoi_snapshot.geojson"
-    (full_snapshot / source.name).write_bytes(source.read_bytes())
-    # The year folder already holds an import partition; the full run must not take it as an
-    # uncommitted write of its own.
-    assert service.compute_area_statistics(full)["status"] == "published"
-    assert service.compute_area_statistics(full)["status"] == "replayed"
+    active = _active_records([1, 2])
+    monkeypatch.setattr(service, "_active_aoi_records", lambda: active)
+    first = _full_run("replay__mapbiomas__a")
+    assert service.build_aoi_snapshot(first)["uc_count"] == 2
+    # The year folder already holds an import partition; the full run writes its own partition.
+    assert service.compute_area_statistics(first)["status"] == "published"
+    assert service.compute_area_statistics(first)["status"] == "replayed"
+    assert service.build_aoi_snapshot(first)["status"] == "replayed"
+    # A UC registered through the panel after the first run enters the next full run.
+    active[:] = _active_records([1, 2, 3])
+    later = _full_run("replay__mapbiomas__b")
+    assert service._aoi_snapshot_dir(later) != service._aoi_snapshot_dir(first)
+    snapshot = service.build_aoi_snapshot(later)
+    assert (snapshot["status"], snapshot["uc_count"], snapshot["import_id"]) == ("published", 3, None)
+    frame = service.compute_area_statistics(later)
+    assert frame["status"] == "published"
+    statistics = pd.read_parquet(service._statistics_dir(later) / "mapbiomas_area_by_aoi_class.parquet")
+    assert set(statistics.id_uc) == {1, 2, 3}
+
+
+def test_full_run_requires_exactly_one_active_zone_per_uc(tmp_path, monkeypatch):
+    service, _, _, _ = _service_with_sources(tmp_path)
+    service.config = replace(service.config, project_db_url="mock")
+    connection = MagicMock()
+    cursor = connection.__enter__.return_value.cursor.return_value.__enter__.return_value
+    cursor.fetchall.return_value = [(7, '{"type":"Point","coordinates":[-49,-27]}', None, None, None, 0)]
+    monkeypatch.setattr("scripts_python.mapbiomas_pipeline.psycopg2.connect", lambda *args: connection)
+    with pytest.raises(MapbiomasPipelineError, match="UC 7 must have exactly one active"):
+        service._active_aoi_records()
 
 
 @pytest.mark.parametrize("point", [False, True])
@@ -123,7 +152,6 @@ def test_statistics_recompute_for_new_import_and_do_not_invent_point_area(tmp_pa
     cursor = connection.__enter__.return_value.cursor.return_value.__enter__.return_value
     cursor.fetchone.return_value = (42,)
     cursor.fetchall.side_effect = [
-        [(101, "UC-A"), (102, "UC-B"), (103, "UC-C")],
         [(101,), (102,), (103,)], [], [], [(101, 201), (102, 202), (103, 203)],
         [(3, 10)], [(3, "BUFFER_ABRANGENCIA")] if point else [(3, "UC"), (3, "BUFFER_ABRANGENCIA")],
     ]

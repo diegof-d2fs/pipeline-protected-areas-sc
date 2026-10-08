@@ -626,11 +626,18 @@ continua proveniente do pacote Bronze/Silver/Gold anual.
 Snapshots usam `aoi_snapshot/imports/import=<sha256(import_id)>` e estatísticas
 Silver/Gold acrescentam a mesma partição à coleção/versão/ano. O campo `id_uc`
 nesses snapshots é a chave interna PostGIS, indicada por
-`identity_kind=postgis_id_uc` no manifesto. O snapshot legado permanece com
-identidade externa. A carga verifica se a zona ativa ainda corresponde à congelada.
-O fluxo usa o ano configurado (padrão 2025), sem processar automaticamente toda a
-série; requer raster anual já publicado e não reconstrói sua tabela de tiles.
+`identity_kind=postgis_id_uc` no manifesto. A carga verifica se a zona ativa ainda
+corresponde à congelada. O fluxo processa todos os anos descobertos e requer o raster
+anual já publicado, sem reconstruir sua tabela de tiles.
 Testes automatizados complementam os ensaios concluídos com ZIP e GeoJSON reais.
+
+Atualização (07/10/2026): a execução completa (sem `import_id`) segue o mesmo modelo.
+Ela congela todas as UCs com `situacao = 'ATIVA'` e a zona ativa de cada uma (exatamente
+uma ZA oficial ou um Buffer de Abrangência), lidas do PostGIS, inclusive as UCs cadastradas
+pelo painel. Snapshot e estatísticas ficam em `runs/run=<sha256(run_id)>`: uma nova
+tentativa da mesma execução reaproveita o que gravou, e uma execução posterior congela
+o cadastro vigente naquele momento. O antigo snapshot `aoi_snapshot/version=1`, derivado
+dos shapefiles legados da Bronze, deixou de ser usado: ele ignorava as UCs vindas da API.
 
 Uma alteração de UC/ZA/Buffer de Abrangência não exige baixar ou republicar o raster. O fluxo atual recalcula os AOIs da importação para todos os anos disponíveis e reutiliza os assets anuais publicados.
 

@@ -27,6 +27,7 @@ from shapely.validation import make_valid
 from scripts_python.config import PipelineConfig
 from scripts_python.domain_pipeline import TaskExecutionContext
 from scripts_python.firms_client import FirmsAreaClient, FirmsAreaResponse
+from scripts_python.object_storage import MedallionStore
 
 LOGGER = logging.getLogger(__name__)
 
@@ -519,6 +520,10 @@ class FirmsPipelineService:
             "confidence_filtered_records": confidence_filtered_records,
         }
 
+    def _medallion_store(self) -> MedallionStore | None:
+        """S3 mirror of the Medallion, or None when the pipeline runs local-only."""
+        return MedallionStore.from_config(self.config)
+
     def recross_published(self, context: TaskExecutionContext) -> dict[str, Any]:
         """Relate every published FIRMS detection to the currently active areas.
 
@@ -529,6 +534,11 @@ class FirmsPipelineService:
         this run get their own Gold partition.
         """
         silver_root = Path(self.config.medallion_silver_path)
+        store = self._medallion_store()
+        if store is not None:
+            # On AWS the S3 lake is the source of truth: a detection published by any earlier
+            # run or node must reach the new areas, not only what this disk still holds.
+            store.pull(("silver",), key_prefix="firms/")
         partitions = sorted(
             manifest.parent
             for manifest in (silver_root / "firms").glob(
