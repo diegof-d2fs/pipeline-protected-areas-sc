@@ -61,3 +61,34 @@ class ActiveAoiQueryTest(unittest.TestCase):
                 self.assertEqual(rows[ids["za"]][5], 1)
             finally:
                 connection.rollback()
+
+
+@unittest.skipUnless(os.getenv("MUTATION_TEST_DB_URL"), "MUTATION_TEST_DB_URL não configurada")
+class SupersedeStatisticsTest(unittest.TestCase):
+    def test_only_current_aois_of_the_snapshotted_ucs_remain(self) -> None:
+        with psycopg2.connect(os.environ["MUTATION_TEST_DB_URL"]) as connection:
+            try:
+                with connection.cursor() as cursor:
+                    # A temporary table shadows public.mapbiomas_clip inside this session only.
+                    cursor.execute(
+                        "CREATE TEMP TABLE mapbiomas_clip (id_raster_asset bigint, id_uc bigint, "
+                        "aoi_type varchar(30), aoi_geometry_sha256 varchar(64));"
+                    )
+                    cursor.execute(
+                        "INSERT INTO mapbiomas_clip VALUES "
+                        "(1, 10, 'UC', 'novo'), (1, 10, 'UC', 'antigo'), "            # versão antiga da UC
+                        "(1, 10, 'BUFFER_ABRANGENCIA', 'b'), (1, 10, 'ZA', 'z'), "   # buffer trocado por ZA
+                        "(2, 10, 'UC', 'antigo'), "                                   # outro raster
+                        "(1, 20, 'UC', 'fora');"                                      # UC fora do snapshot
+                    )
+                    cursor.execute(
+                        MapbiomasPipelineService.SUPERSEDE_STATISTICS_SQL,
+                        (1, [10], [10, 10], ["UC", "ZA"], ["novo", "z"]),
+                    )
+                    self.assertEqual(cursor.rowcount, 2)
+                    cursor.execute("SELECT id_raster_asset, id_uc, aoi_type, aoi_geometry_sha256 FROM mapbiomas_clip ORDER BY 1, 2, 3, 4;")
+                    self.assertEqual(cursor.fetchall(), [
+                        (1, 10, "UC", "novo"), (1, 10, "ZA", "z"), (1, 20, "UC", "fora"), (2, 10, "UC", "antigo"),
+                    ])
+            finally:
+                connection.rollback()

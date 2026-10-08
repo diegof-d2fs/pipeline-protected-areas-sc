@@ -166,6 +166,19 @@ def test_statistics_recompute_for_new_import_and_do_not_invent_point_area(tmp_pa
     assert {row[2] for row in rows} == {101, 102, 103}
     assert {row[4] for row in rows if row[8] == "BUFFER_ABRANGENCIA"} == {201, 202, 203}
     assert all(row[0] == 42 and row[7] == 2025 for row in rows)
+    supersede = [call.args for call in cursor.execute.call_args_list if call.args[0] is service.SUPERSEDE_STATISTICS_SQL]
+    assert len(supersede) == 1 and supersede[0][1][:2] == (42, [101, 102, 103])
+
+
+def test_clipped_zone_keeps_only_its_polygons():
+    from shapely.geometry import GeometryCollection, LineString, Point
+    from scripts_python.mapbiomas_pipeline import MapbiomasPipelineService
+
+    clipped = GeometryCollection([box(0, 0, 1, 1), LineString([(2, 2), (3, 3)]), box(4, 4, 5, 5)])
+    kept = MapbiomasPipelineService._polygonal(clipped)
+    assert kept.geom_type == "MultiPolygon" and len(kept.geoms) == 2 and kept.area == 2
+    assert MapbiomasPipelineService._polygonal(Point(0, 0)).geom_type == "Point"
+    assert MapbiomasPipelineService._polygonal(box(0, 0, 1, 1)).geom_type == "Polygon"
 
 
 def test_manifest_resolves_text_uc_identifiers_to_committed_ids(tmp_path, monkeypatch):

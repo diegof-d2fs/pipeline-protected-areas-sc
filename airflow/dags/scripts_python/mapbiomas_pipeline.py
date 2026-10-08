@@ -27,7 +27,7 @@ from rasterio.windows import Window
 from rasterio.shutil import copy as raster_copy
 from pyproj import Geod
 from shapely import make_valid
-from shapely.geometry import shape
+from shapely.geometry import MultiPolygon, Polygon, shape
 from scripts_python.config import PipelineConfig
 from scripts_python.domain_pipeline import TaskExecutionContext
 from scripts_python.manifest_input import load_manifest_input
@@ -483,6 +483,15 @@ class MapbiomasPipelineService:
         ORDER BY u.id_uc, z.kind;
     """
 
+    # Rows of one raster for the snapshotted UCs whose (aoi_type, geometry) is no longer current.
+    SUPERSEDE_STATISTICS_SQL = """
+        DELETE FROM mapbiomas_clip
+        WHERE id_raster_asset = %s
+          AND id_uc = ANY(%s)
+          AND (id_uc, aoi_type::text, aoi_geometry_sha256::text) NOT IN (
+              SELECT * FROM unnest(%s::bigint[], %s::text[], %s::text[]));
+    """
+
     def _active_aoi_records(self) -> list[dict[str, Any]]:
         """Every active UC with its single active ZA or Buffer de Abrangência, read from PostGIS."""
         records = []
@@ -499,6 +508,24 @@ class MapbiomasPipelineService:
             records.append({"id_uc": int(id_uc), "aoi_type": "UC", "zone_id": 0, "geometry": shape(json.loads(uc_geometry))})
             records.append({"id_uc": int(id_uc), "aoi_type": kind, "zone_id": int(zone_id), "geometry": shape(json.loads(zone_geometry))})
         return records
+
+    @staticmethod
+    def _polygonal(geometry):
+        """Keep only the polygonal parts of a clipped AOI.
+
+        Clipping a zone by the state boundary can leave slivers as lines or points next to the
+        polygons (a GeometryCollection). The raster statistics only accept areas, so the polygons
+        are kept as a MultiPolygon; points and lines of a point UC are returned unchanged.
+        """
+        if geometry.geom_type != "GeometryCollection":
+            return geometry
+        parts = []
+        for part in geometry.geoms:
+            if isinstance(part, Polygon):
+                parts.append(part)
+            elif isinstance(part, MultiPolygon):
+                parts.extend(part.geoms)
+        return MultiPolygon(parts) if parts else geometry
 
     def _build_aoi_snapshot(self, context: TaskExecutionContext) -> dict[str, Any]:
         output_dir = self._aoi_snapshot_dir(context)
@@ -519,7 +546,7 @@ class MapbiomasPipelineService:
             geometry = make_valid(row.geometry)
             if row.aoi_type != "UC":
                 geometry = geometry.difference(uc_geometries[int(row.id_uc)])
-            frame.at[index, "geometry"] = geometry.intersection(state_geometry)
+            frame.at[index, "geometry"] = self._polygonal(geometry.intersection(state_geometry))
         frame = frame[~frame.geometry.is_empty].to_crs(4326)
         if frame.empty:
             raise MapbiomasPipelineError("No AOI intersects Santa Catarina.")
@@ -1066,6 +1093,20 @@ class MapbiomasPipelineService:
                         str(record.area_method), str(record.area_method_version), str(record.boundary_policy),
                         cog_checksum, context.run_id,
                     ))
+                # mapbiomas_clip holds the statistics of the current AOIs only. Rows of the same
+                # raster computed for an older geometry of a snapshotted UC, or for a zone it no
+                # longer has (Buffer replaced by an official ZA), are superseded in this
+                # transaction; otherwise a sum by year would count the same area twice.
+                current = sorted({(row[2], row[8], row[10]) for row in rows})
+                cur.execute(
+                    self.SUPERSEDE_STATISTICS_SQL,
+                    (
+                        asset_id,
+                        sorted({int(id_uc) for id_uc, _, _ in current}),
+                        [item[0] for item in current], [item[1] for item in current], [item[2] for item in current],
+                    ),
+                )
+                superseded = cur.rowcount
                 execute_values(
                     cur,
                     """
@@ -1093,6 +1134,7 @@ class MapbiomasPipelineService:
         total = sum(counts_by_type.values())
         return {
             "status": "loaded", "id_raster_asset": asset_id, "record_count": total,
+            "superseded_record_count": int(superseded or 0),
             "source_record_count": int(frame.shape[0]), "counts_by_type": counts_by_type,
             "collection": dataset.collection, "version": dataset.version, "year": dataset.year,
             "run_id": context.run_id,
