@@ -66,6 +66,10 @@ a cada execução; variável vazia mantém o login bloqueado. O GeoServer recebe
 - Raster: uma camada `mapbiomas_uso_cobertura_<ano>` por ano publicado, lida do COG Gold
   (`airflow/data/gold/mapbiomas_lulc`, montado somente leitura). Os anos vêm de
   `reporting.mapbiomas_raster_asset` e cada arquivo tem o SHA-256 conferido antes de publicar.
+- Tabelas sem geometria, só no WFS (WMS e WMTS desligados na camada): `mapbiomas_clip` (área por
+  classe, ano e AOI) e `mapbiomas_legend_class`. Atendem quem consome tabelas pela web, como o
+  Excel (`outputFormat=csv`), sem login de banco. A extensão é declarada (Santa Catarina), porque
+  o GeoServer não a calcula sem geometria.
 - WFS em nível `BASIC`: sem `Transaction`/`LockFeature`.
 - Cada ano raster é criado como store GeoTIFF e cobertura via REST JSON; o `POST` da cobertura
   dispara a autoconfiguração do GeoServer, que preenche bandas, formato nativo, grade e SRS de

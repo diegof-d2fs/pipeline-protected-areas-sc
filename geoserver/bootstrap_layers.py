@@ -126,6 +126,34 @@ VECTOR_LAYERS = (
 )
 
 
+@dataclass(frozen=True)
+class TableLayer:
+    name: str
+    title: str
+    abstract: str
+
+
+# Views sem geometria, publicadas só no WFS para quem consome tabelas pela web (Excel, Power BI
+# Web): o WFS entrega CSV e JSON sem login de banco. WMS e WMTS ficam desligados nelas.
+TABLE_LAYERS = (
+    TableLayer(
+        "mapbiomas_clip",
+        "MapBiomas Uso e Cobertura — área por classe",
+        "Área em hectares de cada classe MapBiomas, por ano, dentro de cada UC, Zona de "
+        "Amortecimento oficial ou Buffer de Abrangência; nome e cor da classe já resolvidos.",
+    ),
+    TableLayer(
+        "mapbiomas_legend_class",
+        "MapBiomas Uso e Cobertura — legenda",
+        "Legenda oficial da Coleção 11: código, classe-mãe, nível, nome e cor de cada classe.",
+    ),
+)
+
+# Extensão declarada das camadas sem geometria (o GeoServer não a calcula): Santa Catarina com
+# folga, em SIRGAS 2000.
+SC_EXTENT = {"minx": -54.0, "maxx": -48.0, "miny": -29.5, "maxy": -25.8}
+
+
 class GeoServer:
     def __init__(self, base_url: str, user: str, password: str) -> None:
         self.base_url = base_url.rstrip("/")
@@ -297,6 +325,35 @@ def publish_vector_layers(geoserver: GeoServer, db: dict[str, str]) -> None:
         publish_style(geoserver, layer.name, vector_sld(layer))
         set_default_style(geoserver, layer.name, layer.name)
         print(f"camada {layer.name}: {action}")
+
+    for table in TABLE_LAYERS:
+        body = table_feature_type(table)
+        if geoserver.exists(f"{feature_types}/{table.name}.json"):
+            geoserver.request("PUT", f"{feature_types}/{table.name}.json", body)
+            action = "atualizada"
+        else:
+            geoserver.request("POST", f"{feature_types}.json", body)
+            action = "criada"
+        print(f"tabela {table.name}: {action} (somente WFS)")
+
+
+def table_feature_type(table: TableLayer) -> dict:
+    extent = dict(SC_EXTENT, crs=NATIVE_SRS)
+    return {
+        "featureType": {
+            "name": table.name,
+            "nativeName": table.name,
+            "title": table.title,
+            "abstract": table.abstract,
+            "srs": NATIVE_SRS,
+            "projectionPolicy": "FORCE_DECLARED",
+            "nativeBoundingBox": extent,
+            "latLonBoundingBox": extent,
+            "enabled": True,
+            "serviceConfiguration": True,
+            "disabledServices": {"string": ["WMS", "WMTS"]},
+        }
+    }
 
 
 def published_raster_assets(geoserver: GeoServer) -> list[dict]:

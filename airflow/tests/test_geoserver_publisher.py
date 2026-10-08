@@ -30,6 +30,19 @@ class GeoServerPublisherTest(unittest.TestCase):
             with self.subTest(layer=layer.name):
                 ET.fromstring(self.module.vector_sld(layer))
 
+    def test_table_layers_are_wfs_only_with_declared_extent(self) -> None:
+        names = {table.name for table in self.module.TABLE_LAYERS}
+        self.assertEqual(names, {"mapbiomas_clip", "mapbiomas_legend_class"})
+        self.assertFalse(names & {layer.name for layer in self.module.VECTOR_LAYERS})
+        for table in self.module.TABLE_LAYERS:
+            with self.subTest(table=table.name):
+                feature_type = self.module.table_feature_type(table)["featureType"]
+                self.assertEqual(feature_type["disabledServices"], {"string": ["WMS", "WMTS"]})
+                self.assertTrue(feature_type["serviceConfiguration"])
+                box = feature_type["latLonBoundingBox"]
+                self.assertLess(box["minx"], box["maxx"])
+                self.assertLess(box["miny"], box["maxy"])
+
     def test_sync_dag_imports_publisher(self) -> None:
         from airflow.models import DagBag
 
