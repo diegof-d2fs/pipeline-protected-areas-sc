@@ -4,6 +4,12 @@ Guia para agir sobre um e-mail de falha do pipeline. Cada e-mail traz a DAG, a t
 execução, o erro, o contexto da carga e os links do log no CloudWatch e dos relatórios de
 qualidade no S3.
 
+Uma causa gera um e-mail. A tarefa que falhou de fato avisa. Os disparos da cadeia
+(`trigger_*` da DAG_UCS e da DAG_ZA_BUFFER) que falham porque a DAG de baixo falhou não avisam
+de novo. Numa tarefa mapeada, como as anuais do MapBiomas, só a primeira instância que falha
+avisa. Erros de dado (contrato de qualidade ou regra do banco) falham sem retentativa, porque
+repetir não muda o resultado.
+
 ## 1. Investigar
 
 1. Abra o link **Log da tarefa (CloudWatch)** do e-mail. O log fica disponível mesmo com o nó de
@@ -35,6 +41,7 @@ Todas as cargas são idempotentes: repetir uma execução não duplica dados.
 | Importação da API falhou por dado inválido | corrigir o arquivo e enviar uma nova importação pela API |
 | FIRMS: janela de backfill falhou | disparar `DAG_FIRMS_BACKFILL` de novo; só as janelas pendentes ou com falha são reprocessadas |
 | FIRMS semanal falhou | disparar `DAG_FIRMS` com `{"end_date": "AAAA-MM-DD"}` do último dia da semana perdida |
+| MapBiomas: carga de estatísticas falhou por regra do banco ou rejeição sistêmica | corrigir a causa (contrato ou dado) e dar *Clear* só nas tarefas `load_area_statistics_postgres`; a camada Gold já calculada é reaproveitada, sem reprocessar os rasters |
 | MapBiomas Alerta falhou | disparar `DAG_MAPBIOMAS_ALERTA`; com `{"reprocess_published_snapshot": true}` reconstrói a partir da última fotografia, sem chamar a API externa |
 | Área nova sem focos FIRMS históricos | disparar `DAG_FIRMS_RECROSS` |
 | GeoServer desatualizado | disparar `DAG_GEOSERVER_SYNC` |

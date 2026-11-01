@@ -3,7 +3,8 @@
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+from scripts_python.chain_trigger import ChainTriggerDagRunOperator
 
 
 with DAG(
@@ -16,7 +17,7 @@ with DAG(
     default_args={"owner": "tcc-geospatial-team", "retries": 1, "retry_delay": timedelta(minutes=5)},
     tags=["tcc", "geospatial", "mapbiomas_alerta", "backfill"],
 ) as dag:
-    TriggerDagRunOperator(
+    ChainTriggerDagRunOperator(
         task_id="trigger_full_snapshot",
         trigger_dag_id="DAG_MAPBIOMAS_ALERTA",
         trigger_run_id="full-snapshot__{{ run_id }}",

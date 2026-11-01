@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
+from scripts_python.chain_trigger import ChainTriggerDagRunOperator
 from scripts_python.domain_pipeline import TaskExecutionContext
 from scripts_python.reporting_dataset import REPORTING_PUBLISHED
 from scripts_python.za_buffer_pipeline import ZaBufferPipelineService
@@ -109,7 +109,7 @@ with DAG(
     # Temas recalculados para a área alterada. FIRMS entra pelo recruzamento do histórico já
     # publicado; a aquisição de focos segue independente do ciclo cadastral.
     for thematic_dag_id in ("DAG_PRODES", "DAG_MAPBIOMAS_ALERTA", "DAG_MAPBIOMAS", "DAG_FIRMS_RECROSS"):
-        directed_run >> TriggerDagRunOperator(
+        directed_run >> ChainTriggerDagRunOperator(
             task_id=f"trigger_{thematic_dag_id}",
             trigger_dag_id=thematic_dag_id,
             trigger_run_id=f"chain__{{{{ run_id }}}}__{thematic_dag_id}",

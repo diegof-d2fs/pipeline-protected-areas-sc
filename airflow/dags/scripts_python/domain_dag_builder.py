@@ -6,9 +6,9 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator, ShortCircuitOperator
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.sensors.external_task import ExternalTaskSensor
 
+from scripts_python.chain_trigger import ChainTriggerDagRunOperator
 from scripts_python.dag_factory import build_stage_callable
 from scripts_python.reporting_dataset import REPORTING_PUBLISHED
 
@@ -98,7 +98,7 @@ def build_domain_dag(
             )
             stage_tasks[-1] >> should_continue
             for target_dag_id in trigger_dags_for_directed_run:
-                should_continue >> TriggerDagRunOperator(
+                should_continue >> ChainTriggerDagRunOperator(
                     task_id=f"trigger_{target_dag_id}",
                     trigger_dag_id=target_dag_id,
                     trigger_run_id=f"chain__{{{{ run_id }}}}__{target_dag_id}",

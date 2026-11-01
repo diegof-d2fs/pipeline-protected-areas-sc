@@ -23,11 +23,21 @@ RUNBOOK_URL = "https://github.com/diisilva/pipeline-protected-areas-sc/blob/main
 
 
 def notify_task_failure(context: dict[str, Any]) -> None:
-    """Publish the failure e-mail; never raises, so alerting cannot mask the task failure."""
+    """Publish the failure e-mail; never raises, so alerting cannot mask the task failure.
+
+    One cause yields one e-mail: a chain trigger whose downstream DAG failed is not a new cause,
+    and a mapped task (one instance per year) is reported by its first failed instance only.
+    """
     topic_arn = os.environ.get("ALERT_TOPIC_ARN")
     if not topic_arn:
         return
+    if getattr(context.get("exception"), "root_cause_notified", False):
+        LOGGER.info("failure of a downstream DAG, already reported by its own task; no e-mail")
+        return
     try:
+        if _mapped_sibling_already_failed(context["task_instance"]):
+            LOGGER.info("another instance of this mapped task already reported the failure; no e-mail")
+            return
         subject, body = build_failure_message(context, os.environ)
         import boto3
 
@@ -36,6 +46,28 @@ def notify_task_failure(context: dict[str, Any]) -> None:
         )
     except Exception:
         LOGGER.exception("could not publish failure alert")
+
+
+def _mapped_sibling_already_failed(ti) -> bool:
+    if ti.map_index < 0:
+        return False
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.session import create_session
+    from airflow.utils.state import TaskInstanceState
+
+    with create_session() as session:
+        return (
+            session.query(TaskInstance.map_index)
+            .filter(
+                TaskInstance.dag_id == ti.dag_id,
+                TaskInstance.run_id == ti.run_id,
+                TaskInstance.task_id == ti.task_id,
+                TaskInstance.map_index != ti.map_index,
+                TaskInstance.state == TaskInstanceState.FAILED,
+            )
+            .first()
+            is not None
+        )
 
 
 def build_failure_message(context: dict[str, Any], env: os._Environ | dict[str, str]) -> tuple[str, str]:
@@ -62,6 +94,11 @@ def build_failure_message(context: dict[str, Any], env: os._Environ | dict[str, 
         f"Início: {start.isoformat() if start else 'n/d'}",
         f"Fim: {end.isoformat()}",
         f"Duração: {duration}",
+        *(
+            ["Outras instâncias desta tarefa que falharem nesta execução não geram novo e-mail."]
+            if ti.map_index >= 0
+            else []
+        ),
         "",
         "Erro:",
         f"  {type(exception).__name__ if exception else 'desconhecido'}: {exception}",
