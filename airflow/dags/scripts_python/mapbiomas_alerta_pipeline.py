@@ -76,6 +76,7 @@ REJECTION_REASON_DESCRIPTIONS = {
     "MISSING_ALERT_CODE": "Registro sem CODEALERTA valido na origem.",
     "DUPLICATE_ALERT_CODE_IN_BATCH": "Duplicado no lote por CODEALERTA.",
     "DUPLICATE_ALERT_CODE_IN_DB": "CODEALERTA ja existe na tabela de destino.",
+    "UC_NOT_ACTIVE": "UC deixou de estar ATIVA antes da carga.",
 }
 
 
@@ -586,6 +587,8 @@ class MapbiomasAlertaPipelineService(DomainPipelineService):
         skipped_invalid_geom = 0
 
         rejected_frames: dict[str, pd.DataFrame] = {}
+        # Samples are capped at REJECTION_SAMPLE_LIMIT; totals count every rejected row.
+        rejection_totals: dict[str, int] = {}
 
         with psycopg2.connect(self.config.project_db_url) as conn:
             with conn.cursor() as cur:
@@ -607,11 +610,7 @@ class MapbiomasAlertaPipelineService(DomainPipelineService):
                     skipped_invalid_geom += int(before - len(chunk))
 
                     if not invalid_frame.empty:
-                        rejected_frames["INVALID_OR_EMPTY_GEOMETRY"] = pd.concat(
-                            [rejected_frames.get("INVALID_OR_EMPTY_GEOMETRY", pd.DataFrame()), invalid_frame],
-                            axis=0,
-                            ignore_index=True,
-                        ).head(REJECTION_SAMPLE_LIMIT)
+                        self._record_rejection(rejected_frames, rejection_totals, "INVALID_OR_EMPTY_GEOMETRY", invalid_frame)
 
                     if chunk.empty:
                         continue
@@ -628,11 +627,7 @@ class MapbiomasAlertaPipelineService(DomainPipelineService):
                     chunk = chunk[~missing_code_mask].copy()
 
                     if not missing_code_rows.empty:
-                        rejected_frames["MISSING_ALERT_CODE"] = pd.concat(
-                            [rejected_frames.get("MISSING_ALERT_CODE", pd.DataFrame()), missing_code_rows],
-                            axis=0,
-                            ignore_index=True,
-                        ).head(REJECTION_SAMPLE_LIMIT)
+                        self._record_rejection(rejected_frames, rejection_totals, "MISSING_ALERT_CODE", missing_code_rows)
 
                     if chunk.empty:
                         continue
@@ -651,11 +646,7 @@ class MapbiomasAlertaPipelineService(DomainPipelineService):
                     chunk = chunk[~duplicate_mask].copy()
 
                     if not duplicate_rows.empty:
-                        rejected_frames["DUPLICATE_ALERT_CODE_IN_BATCH"] = pd.concat(
-                            [rejected_frames.get("DUPLICATE_ALERT_CODE_IN_BATCH", pd.DataFrame()), duplicate_rows],
-                            axis=0,
-                            ignore_index=True,
-                        ).head(REJECTION_SAMPLE_LIMIT)
+                        self._record_rejection(rejected_frames, rejection_totals, "DUPLICATE_ALERT_CODE_IN_BATCH", duplicate_rows)
 
                     if chunk.empty:
                         continue
@@ -696,11 +687,7 @@ class MapbiomasAlertaPipelineService(DomainPipelineService):
                         chunk = chunk[~existing_mask].copy()
 
                         if not existing_rows.empty:
-                            rejected_frames["DUPLICATE_ALERT_CODE_IN_DB"] = pd.concat(
-                                [rejected_frames.get("DUPLICATE_ALERT_CODE_IN_DB", pd.DataFrame()), existing_rows],
-                                axis=0,
-                                ignore_index=True,
-                            ).head(REJECTION_SAMPLE_LIMIT)
+                            self._record_rejection(rejected_frames, rejection_totals, "DUPLICATE_ALERT_CODE_IN_DB", existing_rows)
 
                     if chunk.empty:
                         continue
@@ -711,7 +698,12 @@ class MapbiomasAlertaPipelineService(DomainPipelineService):
                         (chunk["id_uc"].astype(int).unique().tolist(),),
                     )
                     active_ids = {row[0] for row in cur.fetchall()}
-                    chunk = chunk[chunk["id_uc"].isin(active_ids)].copy()
+                    inactive_mask = ~chunk["id_uc"].isin(active_ids)
+                    if inactive_mask.any():
+                        self._record_rejection(
+                            rejected_frames, rejection_totals, "UC_NOT_ACTIVE", chunk[inactive_mask].copy()
+                        )
+                    chunk = chunk[~inactive_mask].copy()
                     chunk["dt_silver"] = dt_silver
                     chunk["dt_gold"] = dt_gold
                     rows = [self._row_to_db_tuple(row, geometry_column) for _, row in chunk.iterrows()]
@@ -750,10 +742,8 @@ class MapbiomasAlertaPipelineService(DomainPipelineService):
                     inserted_new_records += int(len(rows))
 
         base_counts = dict(transform_rejection_counts)
-        for reason, frame in rejected_frames.items():
-            if frame is None or frame.empty:
-                continue
-            base_counts[reason] = int(base_counts.get(reason, 0)) + int(len(frame))
+        for reason, total in rejection_totals.items():
+            base_counts[reason] = int(base_counts.get(reason, 0)) + int(total)
 
         skipped_records = max(int(source_records - inserted_records), 0)
 
@@ -1011,6 +1001,20 @@ class MapbiomasAlertaPipelineService(DomainPipelineService):
 
     def _describe_rejection_reason(self, reason_code: str) -> str:
         return REJECTION_REASON_DESCRIPTIONS.get(reason_code, "Motivo de rejeicao nao catalogado.")
+
+    def _record_rejection(
+        self,
+        rejected_frames: dict[str, pd.DataFrame],
+        rejection_totals: dict[str, int],
+        reason: str,
+        frame: pd.DataFrame,
+    ) -> None:
+        rejection_totals[reason] = int(rejection_totals.get(reason, 0)) + int(len(frame))
+        rejected_frames[reason] = pd.concat(
+            [rejected_frames.get(reason, pd.DataFrame()), frame],
+            axis=0,
+            ignore_index=True,
+        ).head(REJECTION_SAMPLE_LIMIT)
 
     def _build_rejection_reason_details(self, rejection_counts: dict[str, int]) -> list[dict[str, Any]]:
         return [

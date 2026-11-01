@@ -64,6 +64,7 @@ REJECTION_REASON_DESCRIPTIONS = {
     "MISSING_PRODES_ID": "Registro sem identificador uuid valido na origem.",
     "DUPLICATE_PRODES_ID_IN_BATCH": "Duplicado no lote por uuid.",
     "DUPLICATE_PRODES_ID_IN_DB": "uuid ja existe na tabela de destino.",
+    "UC_NOT_ACTIVE": "UC deixou de estar ATIVA antes da carga.",
 }
 
 
@@ -555,6 +556,8 @@ class ProdesPipelineService(DomainPipelineService):
         skipped_invalid_geom = 0
 
         rejected_frames: dict[str, pd.DataFrame] = {}
+        # Samples are capped at REJECTION_SAMPLE_LIMIT; totals count every rejected row.
+        rejection_totals: dict[str, int] = {}
 
         with psycopg2.connect(self.config.project_db_url) as conn:
             with conn.cursor() as cur:
@@ -576,11 +579,7 @@ class ProdesPipelineService(DomainPipelineService):
                     skipped_invalid_geom += int(before - len(chunk))
 
                     if not invalid_frame.empty:
-                        rejected_frames["INVALID_OR_EMPTY_GEOMETRY"] = pd.concat(
-                            [rejected_frames.get("INVALID_OR_EMPTY_GEOMETRY", pd.DataFrame()), invalid_frame],
-                            axis=0,
-                            ignore_index=True,
-                        ).head(REJECTION_SAMPLE_LIMIT)
+                        self._record_rejection(rejected_frames, rejection_totals, "INVALID_OR_EMPTY_GEOMETRY", invalid_frame)
 
                     if chunk.empty:
                         continue
@@ -598,11 +597,7 @@ class ProdesPipelineService(DomainPipelineService):
                     chunk = chunk[~missing_id_mask].copy()
 
                     if not missing_id_rows.empty:
-                        rejected_frames["MISSING_PRODES_ID"] = pd.concat(
-                            [rejected_frames.get("MISSING_PRODES_ID", pd.DataFrame()), missing_id_rows],
-                            axis=0,
-                            ignore_index=True,
-                        ).head(REJECTION_SAMPLE_LIMIT)
+                        self._record_rejection(rejected_frames, rejection_totals, "MISSING_PRODES_ID", missing_id_rows)
 
                     if chunk.empty:
                         continue
@@ -621,11 +616,7 @@ class ProdesPipelineService(DomainPipelineService):
                     chunk = chunk[~duplicate_mask].copy()
 
                     if not duplicate_rows.empty:
-                        rejected_frames["DUPLICATE_PRODES_ID_IN_BATCH"] = pd.concat(
-                            [rejected_frames.get("DUPLICATE_PRODES_ID_IN_BATCH", pd.DataFrame()), duplicate_rows],
-                            axis=0,
-                            ignore_index=True,
-                        ).head(REJECTION_SAMPLE_LIMIT)
+                        self._record_rejection(rejected_frames, rejection_totals, "DUPLICATE_PRODES_ID_IN_BATCH", duplicate_rows)
 
                     if chunk.empty:
                         continue
@@ -667,11 +658,7 @@ class ProdesPipelineService(DomainPipelineService):
                         chunk = chunk[~existing_mask].copy()
 
                         if not existing_rows.empty:
-                            rejected_frames["DUPLICATE_PRODES_ID_IN_DB"] = pd.concat(
-                                [rejected_frames.get("DUPLICATE_PRODES_ID_IN_DB", pd.DataFrame()), existing_rows],
-                                axis=0,
-                                ignore_index=True,
-                            ).head(REJECTION_SAMPLE_LIMIT)
+                            self._record_rejection(rejected_frames, rejection_totals, "DUPLICATE_PRODES_ID_IN_DB", existing_rows)
 
                     if chunk.empty:
                         continue
@@ -682,7 +669,12 @@ class ProdesPipelineService(DomainPipelineService):
                         (chunk["id_uc"].astype(int).unique().tolist(),),
                     )
                     active_ids = {row[0] for row in cur.fetchall()}
-                    chunk = chunk[chunk["id_uc"].isin(active_ids)].copy()
+                    inactive_mask = ~chunk["id_uc"].isin(active_ids)
+                    if inactive_mask.any():
+                        self._record_rejection(
+                            rejected_frames, rejection_totals, "UC_NOT_ACTIVE", chunk[inactive_mask].copy()
+                        )
+                    chunk = chunk[~inactive_mask].copy()
                     chunk["dt_silver"] = dt_silver
                     chunk["dt_gold"] = dt_gold
                     rows = [self._row_to_db_tuple(row, geometry_column) for _, row in chunk.iterrows()]
@@ -719,10 +711,8 @@ class ProdesPipelineService(DomainPipelineService):
                     inserted_new_records += int(len(rows))
 
         base_counts = dict(transform_rejection_counts)
-        for reason, frame in rejected_frames.items():
-            if frame is None or frame.empty:
-                continue
-            base_counts[reason] = int(base_counts.get(reason, 0)) + int(len(frame))
+        for reason, total in rejection_totals.items():
+            base_counts[reason] = int(base_counts.get(reason, 0)) + int(total)
 
         skipped_records = max(int(source_records - inserted_records), 0)
 
@@ -980,6 +970,20 @@ class ProdesPipelineService(DomainPipelineService):
 
     def _describe_rejection_reason(self, reason_code: str) -> str:
         return REJECTION_REASON_DESCRIPTIONS.get(reason_code, "Motivo de rejeicao nao catalogado.")
+
+    def _record_rejection(
+        self,
+        rejected_frames: dict[str, pd.DataFrame],
+        rejection_totals: dict[str, int],
+        reason: str,
+        frame: pd.DataFrame,
+    ) -> None:
+        rejection_totals[reason] = int(rejection_totals.get(reason, 0)) + int(len(frame))
+        rejected_frames[reason] = pd.concat(
+            [rejected_frames.get(reason, pd.DataFrame()), frame],
+            axis=0,
+            ignore_index=True,
+        ).head(REJECTION_SAMPLE_LIMIT)
 
     def _build_rejection_reason_details(self, rejection_counts: dict[str, int]) -> list[dict[str, Any]]:
         return [
