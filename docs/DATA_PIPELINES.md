@@ -2,9 +2,9 @@
 
 | DAG | Estado | Fonte | Agenda | Service | Dependências | Saídas |
 |---|---|---|---|---|---|---|
-| `DAG_UCS` | IMPLEMENTADA | Bronze UC/manifesto | domingo 06:00 UTC (reconciliação) + evento da API | `UcsPipelineService` | nenhuma | Silver, Gold, UC/histórico/PostGIS, DQ |
-| `DAG_ZA_BUFFER` | IMPLEMENTADA | Bronze ZA/UC | domingo 06:30 UTC (reconciliação) + evento da API | `ZaBufferPipelineService` | UC | Silver, Gold, ZA/Buffer de Abrangência/PostGIS, DQ |
-| `DAG_PRODES` | IMPLEMENTADA | Bronze PRODES | dia 1, 06:00 UTC (mensal) + evento cadastral | `ProdesPipelineService` | UC e ZA/Buffer de Abrangência | Silver, Gold, `prodes_clip`, DQ |
+| `DAG_UCS` | IMPLEMENTADA | Bronze UC/manifesto | sem agenda; evento da API ou manual | `UcsPipelineService` | nenhuma | Silver, Gold, UC/histórico/PostGIS, DQ |
+| `DAG_ZA_BUFFER` | IMPLEMENTADA | Bronze ZA/UC | sem agenda; acionada pela `DAG_UCS`, por manifesto de ZA oficial ou manual | `ZaBufferPipelineService` | UC | Silver, Gold, ZA/Buffer de Abrangência/PostGIS, DQ |
+| `DAG_PRODES` | IMPLEMENTADA | Bronze PRODES | 3 de janeiro, 06:00 UTC (anual) + evento cadastral | `ProdesPipelineService` | UC e ZA/Buffer de Abrangência | Silver, Gold, `prodes_clip`, DQ |
 | `DAG_MAPBIOMAS_ALERTA` | IMPLEMENTADA — resíduo geométrico pendente | Bronze alerta | segunda 06:00 UTC (semanal) + evento cadastral | `MapbiomasAlertaPipelineService` | UC e ZA/Buffer de Abrangência | Silver, Gold, `mapbiomas_alerta_clip`, DQ |
 | `DAG_FIRMS` | IMPLEMENTADA | FIRMS Area API, NOAA‑20/NOAA‑21 NRT | segunda 06:00 UTC (semanal, sete dias anteriores) | `FirmsPipelineService` | snapshot ativo UC e ZA/Buffer de Abrangência | Bronze, Silver, Gold, `firms_clip`, DQ |
 | `DAG_FIRMS_BACKFILL` | IMPLEMENTADA | FIRMS Area API/SP | manual, em páginas de janelas ≤5 dias | `FirmsPipelineService` + `FirmsAreaClient` | `firms_backfill_window` e snapshot ativo UC/ZA/Buffer de Abrangência | Bronze imutável, Silver, Gold, `firms_clip`, DQ |
@@ -14,7 +14,7 @@
 | `DAG_GEOSERVER_SYNC` | IMPLEMENTADA | Dataset `REPORTING_PUBLISHED` | após cada carga | `MedallionStore` + `geoserver/bootstrap_layers.py` | cargas que alteram `reporting` | Medallion no S3 (na AWS), camadas OGC atualizadas |
 | `DAG_CLEANUP_AIRFLOW` | PLANEJADA | logs + metadata | domingo 03:00 proposta | service/funções pequenas | nenhuma | summary auditável |
 
-Os horários estão em UTC. Na AWS, o nó de processamento liga às 06:00 UTC (03:00 BRT) nos dias com agenda (domingo, segunda e dia 1); como as DAGs
+Os horários estão em UTC. Na AWS, o nó de processamento liga às 06:00 UTC (03:00 BRT) nos dias com agenda (toda segunda e 3 de janeiro); como as DAGs
 usam `catchup=False`, o scheduler executa o intervalo devido ao subir, mesmo que o horário exato
 tenha passado com o nó desligado.
 

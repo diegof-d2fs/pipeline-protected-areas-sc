@@ -50,7 +50,7 @@ with DAG(
     description="Parallel ZA and Buffer de Abrangência processing pipeline",
     start_date=datetime(2025, 1, 1),
     catchup=False,
-    schedule="30 6 * * 0",  # semanal, após a reconciliação de UCs
+    schedule=None,  # sem agenda: acionada pela DAG_UCS, por manifesto de ZA oficial ou manualmente
     render_template_as_native_obj=True,
     tags=["tcc", "geospatial", "za_buffer"],
 ) as dag:
