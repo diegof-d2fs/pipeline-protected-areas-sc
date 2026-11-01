@@ -2,11 +2,13 @@
 
 from datetime import datetime, timedelta
 
+import psycopg2
 from airflow import DAG
+from airflow.exceptions import AirflowFailException
 from airflow.operators.python import PythonOperator
 
 from scripts_python.domain_pipeline import TaskExecutionContext
-from scripts_python.mapbiomas_pipeline import MapbiomasPipelineService
+from scripts_python.mapbiomas_pipeline import MapbiomasDataContractError, MapbiomasPipelineService
 from scripts_python.reporting_dataset import REPORTING_PUBLISHED
 
 
@@ -31,7 +33,12 @@ def _run_stage(stage, dataset_conf=None, **kwargs):
     """Execute an annual stage or a shared stage using the first discovered year."""
     if dataset_conf is None:
         dataset_conf = kwargs["ti"].xcom_pull(task_ids="discover_years")[0]["dataset_conf"]
-    return getattr(MapbiomasPipelineService(), stage)(_context(stage, kwargs, dataset_conf))
+    try:
+        return getattr(MapbiomasPipelineService(), stage)(_context(stage, kwargs, dataset_conf))
+    except (MapbiomasDataContractError, psycopg2.IntegrityError) as exc:
+        # Dados fora do contrato ou recusados por uma regra do banco não mudam numa nova
+        # tentativa: falha definitiva já na primeira, sem ocupar o nó com retentativas.
+        raise AirflowFailException(str(exc)) from exc
 
 
 with DAG(

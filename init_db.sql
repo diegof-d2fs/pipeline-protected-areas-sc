@@ -462,7 +462,9 @@ CREATE TABLE IF NOT EXISTS mapbiomas_clip (
     -- coverage_ratio may slightly exceed 1: the pixel-center method
     -- (boundary_policy = 'pixel_center') can select a classified pixel area a
     -- fraction above the vector geodesic AOI area near the AOI edge. A 5% ceiling
-    -- accepts that boundary effect while still rejecting gross errors.
+    -- accepts that boundary effect on large AOIs; on AOIs of a few hectares a few
+    -- edge pixels are a large share, so an excess of up to 1 ha is accepted too.
+    -- Gross errors (an area counted twice) exceed both limits.
     CONSTRAINT chk_mapbiomas_area_statistics
         CHECK (
             aoi_area_ha_geodesic >= 0
@@ -470,7 +472,7 @@ CREATE TABLE IF NOT EXISTS mapbiomas_clip (
             AND class_area_ha >= 0
             AND classified_area_ha >= 0
             AND coverage_ratio >= 0
-            AND coverage_ratio <= 1.05
+            AND (coverage_ratio <= 1.05 OR classified_area_ha - aoi_area_ha_geodesic <= 1)
         ),
     CONSTRAINT chk_mapbiomas_clip_reference_year
         CHECK (reference_year BETWEEN 1985 AND 2100)
@@ -843,5 +845,22 @@ BEGIN
         ALTER TABLE public.firms_backfill_window DROP CONSTRAINT chk_firms_backfill_window_state;
         ALTER TABLE public.firms_backfill_window ADD CONSTRAINT chk_firms_backfill_window_state
             CHECK (processing_state IN ('PENDING', 'RUNNING', 'PUBLISHED', 'FAILED', 'SKIPPED_UNAVAILABLE'));
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_mapbiomas_area_statistics'
+          AND conrelid = 'public.mapbiomas_clip'::regclass
+          AND pg_get_constraintdef(oid) NOT LIKE '%aoi_area_ha_geodesic) <=%'
+    ) THEN
+        ALTER TABLE public.mapbiomas_clip DROP CONSTRAINT chk_mapbiomas_area_statistics;
+        ALTER TABLE public.mapbiomas_clip ADD CONSTRAINT chk_mapbiomas_area_statistics
+            CHECK (
+                aoi_area_ha_geodesic >= 0
+                AND pixel_count >= 0
+                AND class_area_ha >= 0
+                AND classified_area_ha >= 0
+                AND coverage_ratio >= 0
+                AND (coverage_ratio <= 1.05 OR classified_area_ha - aoi_area_ha_geodesic <= 1)
+            );
     END IF;
 END $$;

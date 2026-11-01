@@ -38,6 +38,10 @@ class MapbiomasPipelineError(RuntimeError):
     """Raised when the immutable MapBiomas Bronze contract cannot be satisfied."""
 
 
+class MapbiomasDataContractError(MapbiomasPipelineError):
+    """Raised when published data break a quality contract; a retry cannot change the outcome."""
+
+
 @dataclass(frozen=True)
 class MapbiomasDataset:
     """One immutable MapBiomas coverage dataset identified by collection, version and year.
@@ -121,6 +125,21 @@ class MapbiomasPipelineService:
     RECONCILIATION_NON_AQUATIC_TOLERANCE_PCT = 0.1
     BETA_CLASS_IDS = frozenset({7, 62, 84, 91})
     RASTER_TILE_SIZE = 512
+    # Coverage contract of an AOI. With boundary_policy pixel_center a whole pixel enters when
+    # its centre falls inside the AOI, so the classified area may exceed the vector area. The
+    # 5% ratio absorbs that edge effect on large AOIs; on AOIs of a few hectares a handful of
+    # edge pixels is a large share, so an absolute excess of up to 1 ha is accepted as well.
+    # Gross errors (an area counted twice) exceed both limits. Mirrors chk_mapbiomas_area_statistics.
+    COVERAGE_RATIO_TOLERANCE = 1.05
+    COVERAGE_EXCESS_TOLERANCE_HA = 1.0
+    # Rejected AOIs are quarantined and the rest is loaded. Above this share of the AOIs the
+    # failure is systemic (a processing defect), so nothing is loaded and the task fails.
+    MAX_REJECTED_AOI_SHARE = 0.05
+    REJECTION_REASON_DESCRIPTIONS = {
+        "COVERAGE_OUT_OF_TOLERANCE": (
+            "Área classificada da área de interesse acima de 5% e de 1 ha da área geodésica do polígono."
+        ),
+    }
 
     def __init__(self, config: PipelineConfig | None = None) -> None:
         """Create the service with the current medallion and source configuration."""
@@ -1010,7 +1029,8 @@ class MapbiomasPipelineService:
         Maps the snapshot ``id_uc`` to the active UC, the active
         ``id_za_oficial``/``id_buffer_abrangencia`` per AOI type, the legend class and the raster
         asset, then inserts one fact row per class per AOI. Idempotent through the
-        natural unique index.
+        natural unique index. AOIs that break the coverage contract are quarantined in the
+        quality report and the others are loaded, unless the rejections are systemic.
         """
         if not self.config.project_db_url:
             raise MapbiomasPipelineError("PROJECT_DB_URL is required for load_area_statistics_postgres.")
@@ -1031,6 +1051,18 @@ class MapbiomasPipelineService:
         }
 
         frame = pd.read_parquet(parquet_path)
+        aoi_keys = ["id_uc", "aoi_type"]
+        aoi_count = int(frame[aoi_keys].drop_duplicates().shape[0])
+        rejected = self._coverage_rejections(frame)
+        if aoi_count and len(rejected) / aoi_count > self.MAX_REJECTED_AOI_SHARE:
+            self._write_load_quality_report(context, dataset, aoi_count, 0, rejected, "SYSTEMIC_REJECTION")
+            raise MapbiomasDataContractError(
+                f"{len(rejected)} of {aoi_count} AOIs break the coverage contract in {dataset.year}; "
+                "above the systemic limit, nothing was loaded."
+            )
+        if not rejected.empty:
+            frame = frame.merge(rejected[aoi_keys], on=aoi_keys, how="left", indicator=True)
+            frame = frame.loc[frame["_merge"] == "left_only"].drop(columns="_merge")
         with psycopg2.connect(self.config.project_db_url) as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -1132,13 +1164,86 @@ class MapbiomasPipelineService:
                 )
                 counts_by_type = {aoi_type: int(count) for count, aoi_type in cur.fetchall()}
         total = sum(counts_by_type.values())
+        result_reason = "LOADED_WITH_REJECTIONS" if not rejected.empty else "LOADED"
+        self._write_load_quality_report(context, dataset, aoi_count, aoi_count - len(rejected), rejected, result_reason)
         return {
             "status": "loaded", "id_raster_asset": asset_id, "record_count": total,
             "superseded_record_count": int(superseded or 0),
             "source_record_count": int(frame.shape[0]), "counts_by_type": counts_by_type,
+            "rejected_aoi_count": int(len(rejected)),
             "collection": dataset.collection, "version": dataset.version, "year": dataset.year,
             "run_id": context.run_id,
         }
+
+    def _coverage_rejections(self, frame: pd.DataFrame) -> pd.DataFrame:
+        """One row per AOI whose classified area breaks the coverage contract."""
+        aois = frame.drop_duplicates(["id_uc", "aoi_type"])[
+            ["id_uc", "aoi_type", "aoi_area_ha_geodesic", "classified_area_ha", "coverage_ratio"]
+        ].copy()
+        aois["excess_ha"] = aois["classified_area_ha"] - aois["aoi_area_ha_geodesic"]
+        # A zero AOI area gives an infinite ratio that the absolute excess alone would let through.
+        within = (
+            (aois["aoi_area_ha_geodesic"] > 0)
+            & np.isfinite(aois["coverage_ratio"])
+            & (aois["coverage_ratio"] >= 0)
+            & (
+                (aois["coverage_ratio"] <= self.COVERAGE_RATIO_TOLERANCE)
+                | (aois["excess_ha"] <= self.COVERAGE_EXCESS_TOLERANCE_HA)
+            )
+        )
+        rejected = aois.loc[~within].reset_index(drop=True)
+        rejected["reason_code"] = "COVERAGE_OUT_OF_TOLERANCE"
+        return rejected
+
+    def _write_load_quality_report(
+        self,
+        context: TaskExecutionContext,
+        dataset: MapbiomasDataset,
+        source_aois: int,
+        loaded_aois: int,
+        rejected: pd.DataFrame,
+        result_reason: str,
+    ) -> Path:
+        """Quality report of one yearly load, in the layout of the other pipelines."""
+        safe_run_id = re.sub(r"[^a-zA-Z0-9_.-]", "_", context.run_id)
+        target = (
+            Path(self.config.medallion_tmp_path).resolve().parent / "quality" / "rejections" / "mapbiomas_lulc"
+            / f"run_id={safe_run_id}" / f"branch=year={dataset.year}" / "stage=load_area_statistics_postgres"
+        )
+        target.mkdir(parents=True, exist_ok=True)
+        counts = rejected["reason_code"].value_counts().to_dict() if not rejected.empty else {}
+        summary = {
+            "domain": "mapbiomas_lulc",
+            "branch": f"year={dataset.year}",
+            "stage": "load_area_statistics_postgres",
+            "dag_id": context.dag_id,
+            "run_id": context.run_id,
+            "logical_date": context.logical_date,
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            "collection": dataset.collection,
+            "version": dataset.version,
+            "year": dataset.year,
+            "source_records": int(source_aois),
+            "inserted_records": int(loaded_aois),
+            "skipped_records": int(len(rejected)),
+            "result_reason": result_reason,
+            "coverage_ratio_tolerance": self.COVERAGE_RATIO_TOLERANCE,
+            "coverage_excess_tolerance_ha": self.COVERAGE_EXCESS_TOLERANCE_HA,
+            "max_rejected_aoi_share": self.MAX_REJECTED_AOI_SHARE,
+            "rejection_counts": {reason: int(count) for reason, count in counts.items()},
+            "rejection_reason_details": [
+                {
+                    "reason_code": reason,
+                    "reason_description": self.REJECTION_REASON_DESCRIPTIONS.get(reason, "Motivo de rejeicao nao catalogado."),
+                    "count": int(count),
+                }
+                for reason, count in counts.items()
+            ],
+        }
+        (target / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+        if not rejected.empty:
+            rejected.to_csv(target / "rejected_rows.csv", index=False, encoding="utf-8")
+        return target
 
     # ------------------------------------------------------------------
     # Raster load helpers
