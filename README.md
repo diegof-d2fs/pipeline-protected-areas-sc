@@ -4,6 +4,8 @@ Pipeline geoespacial orquestrado para monitoramento de Unidades de Conservacao (
 
 Este repositorio implementa o backend tecnico do TCC, com foco em ingestao, padronizacao, validacao, transformacao e persistencia de dados geoespaciais de diferentes fontes ambientais. A arquitetura foi desenhada para uso local no MVP atual e preparada para evolucao futura para AWS/S3.
 
+> **Wiki de acesso aos dados:** [diegof-d2fs.github.io/pipeline-protected-areas-sc](https://diegof-d2fs.github.io/pipeline-protected-areas-sc/). Como usar os dados publicados no QGIS, no Excel, no Power BI, em SQL e em Python, com o dicionario de dados e consultas prontas. A fonte fica em `wiki/index.md`, e cada mudanca em `wiki/` na `main` republica o site.
+
 ---
 
 ## Sumario
