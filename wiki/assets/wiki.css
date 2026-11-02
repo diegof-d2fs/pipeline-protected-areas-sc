@@ -1,0 +1,177 @@
+/* Wiki do Áreas Protegidas SC: visual inspirado no Wiki.js, com avisos coloridos e sumário fixo. */
+:root {
+  --primary: #1976d2;
+  --primary-dark: #0d47a1;
+  --topbar: #1e293b;
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --text: #263238;
+  --muted: #607d8b;
+  --border: #e0e6ed;
+  --stripe: #f8fafc;
+  --code-bg: #eef2f7;
+  --info-bg: #e3f2fd;    --info-bar: #2196f3;    --info-text: #0d47a1;
+  --warn-bg: #fff3e0;    --warn-bar: #ff9800;    --warn-text: #8a4b00;
+  --ok-bg: #e8f5e9;      --ok-bar: #43a047;      --ok-text: #1b5e20;
+  --danger-bg: #ffebee;  --danger-bar: #e53935;  --danger-text: #b71c1c;
+  --sidebar-w: 300px;
+}
+/* Tema escuro: automático pelo sistema, a menos que o leitor escolha claro ou escuro no botão. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #64b5f6;
+    --primary-dark: #90caf9;
+    --topbar: #0b1220;
+    --bg: #0f172a;
+    --surface: #111c33;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #22314d;
+    --stripe: #14213b;
+    --code-bg: #1b2a47;
+    --info-bg: #0f2a46;    --info-bar: #42a5f5;    --info-text: #bbdefb;
+    --warn-bg: #3a2a10;    --warn-bar: #ffa726;    --warn-text: #ffe0b2;
+    --ok-bg: #133321;      --ok-bar: #66bb6a;      --ok-text: #c8e6c9;
+    --danger-bg: #3b1518;  --danger-bar: #ef5350;  --danger-text: #ffcdd2;
+  }
+}
+:root[data-theme="dark"] {
+    --primary: #64b5f6;
+    --primary-dark: #90caf9;
+    --topbar: #0b1220;
+    --bg: #0f172a;
+    --surface: #111c33;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #22314d;
+    --stripe: #14213b;
+    --code-bg: #1b2a47;
+    --info-bg: #0f2a46;    --info-bar: #42a5f5;    --info-text: #bbdefb;
+    --warn-bg: #3a2a10;    --warn-bar: #ffa726;    --warn-text: #ffe0b2;
+    --ok-bg: #133321;      --ok-bar: #66bb6a;      --ok-text: #c8e6c9;
+    --danger-bg: #3b1518;  --danger-bar: #ef5350;  --danger-text: #ffcdd2;
+  }
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Barra superior */
+.topbar {
+  position: fixed; inset: 0 0 auto 0; height: 60px; z-index: 20;
+  display: flex; align-items: center; gap: 16px; padding: 0 20px;
+  background: var(--topbar); color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+}
+.brand { color: #fff; font-weight: 700; font-size: 18px; white-space: nowrap; }
+.brand span { font-weight: 400; opacity: .7; margin-left: 4px; }
+.brand:hover { text-decoration: none; }
+.toplinks { margin-left: auto; display: flex; gap: 18px; }
+.toplinks a { color: #cfd8dc; font-size: 14px; font-weight: 500; }
+.toplinks a:hover { color: #fff; }
+.theme {
+  background: none; border: 1px solid #475569; border-radius: 16px; color: #cfd8dc;
+  font: 500 13px "Roboto", sans-serif; padding: 4px 12px; cursor: pointer; white-space: nowrap;
+}
+.theme:hover { color: #fff; border-color: #94a3b8; }
+.menu { display: none; background: none; border: 0; color: #fff; font-size: 22px; cursor: pointer; padding: 4px 8px; }
+
+/* Layout */
+.layout { display: flex; padding-top: 60px; overflow-x: clip; }
+.sidebar {
+  position: fixed; top: 60px; bottom: 0; left: 0; width: var(--sidebar-w);
+  overflow-y: auto; padding: 20px 12px 40px 20px;
+  background: var(--surface); border-right: 1px solid var(--border);
+}
+.sidebar-title { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.toc ul { list-style: none; margin: 0; padding: 0; }
+.toc ul ul { padding-left: 14px; border-left: 2px solid var(--border); margin: 2px 0 6px 6px; display: none; }
+.toc li.open > ul { display: block; }
+.toc a { display: block; padding: 4px 8px; border-radius: 6px; color: var(--text); font-size: 14px; line-height: 1.35; }
+.toc ul ul a { font-size: 13px; color: var(--muted); }
+.toc a:hover { background: var(--code-bg); text-decoration: none; }
+.toc a.active { background: var(--info-bg); color: var(--primary-dark); font-weight: 500; }
+
+.content {
+  margin-left: var(--sidebar-w); width: 100%; min-width: 0; max-width: calc(980px + var(--sidebar-w));
+  padding: 32px 48px 64px;
+}
+.content > * { max-width: 980px; }
+
+/* Tipografia */
+h1 { font-size: 34px; line-height: 1.2; margin: 8px 0 20px; }
+h2 {
+  font-size: 26px; margin: 48px 0 16px; padding-bottom: 8px;
+  border-bottom: 3px solid var(--primary); color: var(--text);
+}
+h3 { font-size: 20px; margin: 32px 0 12px; color: var(--primary-dark); }
+h4 { font-size: 17px; margin: 24px 0 8px; }
+h2, h3, h4 { scroll-margin-top: 76px; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 32px 0; }
+p, li { max-width: 80ch; }
+li + li { margin-top: 4px; }
+em { color: var(--muted); }
+
+/* Avisos (padrão Wiki.js) */
+blockquote { margin: 18px 0; padding: 12px 18px; border-left: 4px solid var(--border); background: var(--surface); border-radius: 0 6px 6px 0; }
+blockquote p { margin: 6px 0; max-width: none; }
+.callout.is-info    { background: var(--info-bg);   border-color: var(--info-bar);   color: var(--info-text); }
+.callout.is-warning { background: var(--warn-bg);   border-color: var(--warn-bar);   color: var(--warn-text); }
+.callout.is-success { background: var(--ok-bg);     border-color: var(--ok-bar);     color: var(--ok-text); }
+.callout.is-danger  { background: var(--danger-bg); border-color: var(--danger-bar); color: var(--danger-text); }
+.callout a { color: inherit; text-decoration: underline; }
+.callout code { background: rgba(0,0,0,.07); }
+
+/* Tabelas */
+.table-wrap { overflow-x: auto; margin: 14px 0 22px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { padding: 9px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { background: var(--code-bg); font-weight: 700; white-space: nowrap; }
+tbody tr:nth-child(even) { background: var(--stripe); }
+tbody tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+td:first-child { overflow-wrap: anywhere; }
+
+/* Código */
+code { font-family: "Roboto Mono", ui-monospace, Consolas, monospace; font-size: .88em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { position: relative; margin: 14px 0 20px; border-radius: 8px; background: #282c34; overflow: hidden; }
+pre code { display: block; padding: 16px 18px; overflow-x: auto; background: none; color: #e6e6e6; font-size: 13.5px; line-height: 1.55; }
+pre code.hljs { padding: 16px 18px; background: none; }
+.copy {
+  position: absolute; top: 8px; right: 8px; padding: 3px 10px;
+  border: 1px solid #4b5263; border-radius: 6px; background: #2f343f; color: #cfd8dc;
+  font: 500 12px "Roboto", sans-serif; cursor: pointer; opacity: 0; transition: opacity .15s;
+}
+pre:hover .copy, .copy:focus { opacity: 1; }
+.copy.done { color: #a5d6a7; border-color: #66bb6a; }
+
+/* Imagens e diagramas */
+img { display: block; max-width: 100%; height: auto; margin: 14px 0 6px; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+p:has(> img) + p > em:only-child { display: block; font-size: 14px; margin-bottom: 18px; }
+.mermaid { margin: 18px 0 22px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; text-align: center; overflow-x: auto; }
+
+.page-footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+.to-top {
+  position: fixed; right: 22px; bottom: 22px; width: 42px; height: 42px; border: 0; border-radius: 50%;
+  background: var(--primary); color: #fff; font-size: 20px; cursor: pointer; box-shadow: 0 3px 10px rgba(0,0,0,.25);
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.to-top.show { opacity: 1; pointer-events: auto; }
+
+/* Telas pequenas: o sumário vira gaveta */
+@media (max-width: 1000px) {
+  .menu { display: block; }
+  .toplinks a:first-of-type { display: none; }
+  .toplinks { gap: 10px; }
+  .sidebar { transform: translateX(-100%); transition: transform .2s; z-index: 15; width: min(85vw, var(--sidebar-w)); box-shadow: 4px 0 16px rgba(0,0,0,.2); }
+  .sidebar.open { transform: none; }
+  .content { margin-left: 0; padding: 24px 16px 56px; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 22px; }
+}

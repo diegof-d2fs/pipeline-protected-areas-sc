@@ -5,7 +5,9 @@ name: ci
 on:
   push:
     branches: [main]
+    paths-ignore: ["wiki/**", ".github/workflows/wiki.yml"]
   pull_request:
+    paths-ignore: ["wiki/**", ".github/workflows/wiki.yml"]
 
 permissions:
   contents: read

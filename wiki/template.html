@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{title}} · Áreas Protegidas SC</title>
+  <meta name="description" content="Como acessar os dados publicados pelo projeto Áreas Protegidas SC no QGIS, no Excel, no Power BI, em SQL e em Python, com o dicionário de dados e consultas prontas.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <link rel="stylesheet" href="assets/wiki.css">
+  <script>
+    // Aplica o tema escolhido antes de desenhar a página, para não piscar.
+    try {
+      const tema = localStorage.getItem("wiki-tema");
+      if (tema === "light" || tema === "dark") document.documentElement.dataset.theme = tema;
+    } catch (err) {}
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <button class="menu" type="button" aria-label="Abrir o sumário" aria-expanded="false">☰</button>
+    <a class="brand" href="#">🗺️ Áreas Protegidas SC <span>Wiki</span></a>
+    <nav class="toplinks">
+      <button class="theme" type="button" aria-label="Trocar o tema">🌓 Automático</button>
+      <a href="https://areasprotegidas-sc.com" target="_blank" rel="noopener noreferrer">Abrir o produto</a>
+      <a href="https://github.com/diegof-d2fs/pipeline-protected-areas-sc" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Sumário">
+      <p class="sidebar-title">Nesta página</p>
+      <nav class="toc">{{toc}}</nav>
+    </aside>
+    <main class="content">
+      {{content}}
+      <footer class="page-footer">
+        Gerada em {{built}} a partir de <code>wiki/index.md</code> ·
+        <a href="https://github.com/diegof-d2fs/pipeline-protected-areas-sc/blob/main/wiki/index.md" target="_blank" rel="noopener noreferrer">editar no GitHub</a> ·
+        código sob licença MIT
+      </footer>
+    </main>
+  </div>
+  <button class="to-top" type="button" aria-label="Voltar ao topo">↑</button>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <script src="assets/wiki.js"></script>
+</body>
+</html>
