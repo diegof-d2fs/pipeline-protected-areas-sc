@@ -14,6 +14,9 @@
   --warn-bg: #fff3e0;    --warn-bar: #ff9800;    --warn-text: #8a4b00;
   --ok-bg: #e8f5e9;      --ok-bar: #43a047;      --ok-text: #1b5e20;
   --danger-bg: #ffebee;  --danger-bar: #e53935;  --danger-text: #b71c1c;
+  --concept-bg: #f3e5f5; --concept-bar: #8e24aa; --concept-text: #4a148c;
+  --check-bg: #e0f2f1;   --check-bar: #00897b;   --check-text: #004d40;
+  --accent: #ff6f00;
   --sidebar-w: 300px;
 }
 /* Tema escuro: automático pelo sistema, a menos que o leitor escolha claro ou escuro no botão. */
@@ -33,6 +36,8 @@
     --warn-bg: #3a2a10;    --warn-bar: #ffa726;    --warn-text: #ffe0b2;
     --ok-bg: #133321;      --ok-bar: #66bb6a;      --ok-text: #c8e6c9;
     --danger-bg: #3b1518;  --danger-bar: #ef5350;  --danger-text: #ffcdd2;
+    --concept-bg: #2d1838; --concept-bar: #ba68c8; --concept-text: #e1bee7;
+    --check-bg: #0f302c;   --check-bar: #4db6ac;   --check-text: #b2dfdb;
   }
 }
 :root[data-theme="dark"] {
@@ -50,6 +55,8 @@
     --warn-bg: #3a2a10;    --warn-bar: #ffa726;    --warn-text: #ffe0b2;
     --ok-bg: #133321;      --ok-bar: #66bb6a;      --ok-text: #c8e6c9;
     --danger-bg: #3b1518;  --danger-bar: #ef5350;  --danger-text: #ffcdd2;
+    --concept-bg: #2d1838; --concept-bar: #ba68c8; --concept-text: #e1bee7;
+    --check-bg: #0f302c;   --check-bar: #4db6ac;   --check-text: #b2dfdb;
   }
 
 * { box-sizing: border-box; }
@@ -125,6 +132,11 @@ blockquote p { margin: 6px 0; max-width: none; }
 .callout.is-warning { background: var(--warn-bg);   border-color: var(--warn-bar);   color: var(--warn-text); }
 .callout.is-success { background: var(--ok-bg);     border-color: var(--ok-bar);     color: var(--ok-text); }
 .callout.is-danger  { background: var(--danger-bg); border-color: var(--danger-bar); color: var(--danger-text); }
+.callout.is-concept { background: var(--concept-bg); border-color: var(--concept-bar); color: var(--concept-text); }
+.callout.is-check   { background: var(--check-bg);  border-color: var(--check-bar);  color: var(--check-text); }
+.callout { border-left-width: 6px; padding: 14px 20px; }
+.callout ol, .callout ul { margin: 6px 0; padding-left: 22px; }
+.callout li { max-width: none; }
 .callout a { color: inherit; text-decoration: underline; }
 .callout code { background: rgba(0,0,0,.07); }
 
@@ -175,3 +187,56 @@ p:has(> img) + p > em:only-child { display: block; font-size: 14px; margin-botto
   h1 { font-size: 28px; }
   h2 { font-size: 22px; }
 }
+
+/* Cartões de trilha (Comece por aqui) */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 16px 0 24px; max-width: 980px; }
+.card {
+  display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-top: 5px solid var(--primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,.05); color: var(--text);
+}
+.card .card-emoji { font-size: 26px; line-height: 1; }
+.card strong { font-size: 16px; }
+.card > span { font-size: 14px; color: var(--muted); }
+.card ol { margin: 4px 0 0; padding-left: 18px; font-size: 14px; }
+.card ol li { margin: 2px 0; }
+.card .time { font-size: 12.5px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+.card.c-green { border-top-color: var(--ok-bar); }
+.card.c-orange { border-top-color: var(--warn-bar); }
+.card.c-purple { border-top-color: var(--concept-bar); }
+
+/* Legenda das caixas */
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 20px; }
+.legend span { font-size: 13.5px; font-weight: 500; padding: 5px 12px; border-radius: 999px; border-left: 5px solid; }
+.legend .l-concept { background: var(--concept-bg); color: var(--concept-text); border-color: var(--concept-bar); }
+.legend .l-info { background: var(--info-bg); color: var(--info-text); border-color: var(--info-bar); }
+.legend .l-ok { background: var(--ok-bg); color: var(--ok-text); border-color: var(--ok-bar); }
+.legend .l-warn { background: var(--warn-bg); color: var(--warn-text); border-color: var(--warn-bar); }
+.legend .l-check { background: var(--check-bg); color: var(--check-text); border-color: var(--check-bar); }
+
+/* Figuras conceituais em SVG */
+.concept-fig { margin: 16px 0 6px; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow-x: auto; }
+.concept-fig svg { display: block; width: 100%; max-width: 860px; height: auto; margin: 0 auto; color: var(--text); }
+.concept-fig svg text { fill: currentColor; font-family: "Roboto", sans-serif; }
+
+/* Imagens clicáveis */
+.content img { cursor: zoom-in; }
+.content img:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* Lightbox */
+.lightbox { position: fixed; inset: 0; z-index: 100; background: rgba(8, 14, 28, .97); display: none; flex-direction: column; }
+.lightbox.open { display: flex; }
+.lightbox .lb-bar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: #e2e8f0; }
+.lightbox .lb-cap { margin-right: auto; font-size: 15px; }
+.lightbox button { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; font: 500 14px "Roboto", sans-serif; padding: 6px 12px; cursor: pointer; }
+.lightbox button:hover { background: rgba(255,255,255,.22); }
+.lightbox .lb-close { font-size: 22px; width: 44px; height: 44px; padding: 0; }
+.lightbox .lb-stage { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 10px; }
+.lightbox .lb-stage img { max-width: 100%; max-height: 100%; margin: 0; border: 0; box-shadow: none; background: #fff; cursor: zoom-in; }
+.lightbox .lb-stage.zoomed { align-items: flex-start; justify-content: flex-start; }
+.lightbox .lb-stage.zoomed img { max-width: none; max-height: none; cursor: zoom-out; }
+.lightbox .lb-hint { text-align: center; font-size: 12.5px; color: #94a3b8; padding: 6px; }
+
+/* Passos numerados mais legíveis */
+.content ol > li { margin-top: 8px; }
+kbd { font: 500 12.5px "Roboto Mono", monospace; padding: 1px 6px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; background: var(--surface); white-space: nowrap; }

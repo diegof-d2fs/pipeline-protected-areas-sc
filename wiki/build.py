@@ -1,7 +1,8 @@
 """Gera o site estático da wiki (GitHub Pages) a partir de wiki/index.md.
 
 O markdown segue o padrão Wiki.js usado nas wikis do projeto: avisos com `{.is-info}`,
-`{.is-warning}`, `{.is-success}` ou `{.is-danger}` na linha seguinte ao bloco de citação,
+`{.is-warning}`, `{.is-success}`, `{.is-danger}`, `{.is-concept}` (conceito) ou `{.is-check}` (confira)
+na linha seguinte ao bloco de citação,
 diagramas em blocos ```mermaid e remissões internas por âncora. O build falha se uma âncora
 interna não existir, para que um título renomeado não deixe link quebrado no ar.
 
@@ -21,7 +22,7 @@ from markdown.extensions.toc import slugify_unicode
 
 ROOT = Path(__file__).resolve().parent
 OUT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "_site"
-CALLOUTS = ("is-info", "is-warning", "is-success", "is-danger")
+CALLOUTS = ("is-info", "is-warning", "is-success", "is-danger", "is-concept", "is-check")
 
 
 CALLOUT_BLOCK = re.compile(r"((?:^>.*\n)+)\{\.(" + "|".join(CALLOUTS) + r")\}[ \t]*$", re.M)
@@ -66,6 +67,7 @@ def postprocess(body: str) -> tuple[str, str]:
 
     for img in soup.find_all("img"):
         img["loading"] = "lazy"
+        img["tabindex"] = "0"
         if not img.get("alt"):
             caption = img.find_parent("p").find_next_sibling("p") if img.find_parent("p") else None
             img["alt"] = caption.get_text(strip=True) if caption and caption.find("em") else "Captura de tela"

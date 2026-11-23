@@ -91,4 +91,58 @@
   onScroll();
 
   document.querySelector(".to-top").addEventListener("click", () => window.scrollTo({ top: 0 }));
+
+  // Figuras em tela cheia: clique (ou Enter) na imagem abre; X, Esc ou clique fora fecham.
+  const lb = document.createElement("div");
+  lb.className = "lightbox";
+  lb.setAttribute("role", "dialog");
+  lb.setAttribute("aria-modal", "true");
+  lb.setAttribute("aria-label", "Imagem em tela cheia");
+  lb.innerHTML =
+    '<div class="lb-bar"><span class="lb-cap"></span>' +
+    '<button type="button" class="lb-zoom">Tamanho real</button>' +
+    '<button type="button" class="lb-open">Abrir em nova aba</button>' +
+    '<button type="button" class="lb-close" aria-label="Fechar (Esc)">✕</button></div>' +
+    '<div class="lb-stage"><img alt=""></div>' +
+    '<div class="lb-hint">Clique na imagem para alternar o tamanho real · Esc ou ✕ para voltar ao guia</div>';
+  document.body.appendChild(lb);
+  const lbImg = lb.querySelector("img");
+  const lbStage = lb.querySelector(".lb-stage");
+  let lastFocus = null;
+  const captionOf = (img) => {
+    const p = img.closest("p");
+    const next = p && p.nextElementSibling;
+    if (next && next.tagName === "P" && next.querySelector("em")) return next.textContent.trim();
+    return img.alt || "";
+  };
+  const openLb = (img) => {
+    lastFocus = img;
+    lbImg.src = img.currentSrc || img.src;
+    lbImg.alt = img.alt;
+    lb.querySelector(".lb-cap").textContent = captionOf(img);
+    lbStage.classList.remove("zoomed");
+    lb.classList.add("open");
+    document.body.style.overflow = "hidden";
+    lb.querySelector(".lb-close").focus();
+  };
+  const closeLb = () => {
+    lb.classList.remove("open");
+    document.body.style.overflow = "";
+    if (lastFocus) lastFocus.focus();
+  };
+  const toggleZoom = () => lbStage.classList.toggle("zoomed");
+  document.querySelectorAll(".content img").forEach((img) => {
+    img.addEventListener("click", () => openLb(img));
+    img.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openLb(img); }
+    });
+  });
+  lb.querySelector(".lb-close").addEventListener("click", closeLb);
+  lb.querySelector(".lb-zoom").addEventListener("click", toggleZoom);
+  lb.querySelector(".lb-open").addEventListener("click", () => window.open(lbImg.src, "_blank", "noopener"));
+  lbImg.addEventListener("click", toggleZoom);
+  lbStage.addEventListener("click", (e) => { if (e.target === lbStage) closeLb(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && lb.classList.contains("open")) closeLb();
+  });
 })();

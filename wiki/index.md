@@ -1,6 +1,6 @@
 # 🗺️ Wiki de acesso aos dados
 
-> ℹ️ Esta página reúne **como acessar os dados publicados pelo projeto Áreas Protegidas SC** sobre as Unidades de Conservação de Santa Catarina e seus entornos: os serviços de mapa, o Excel, o Power BI, o SQL e o Python, com o dicionário de dados e 15 consultas prontas. Os números de cobertura são um **retrato de 02/11/2026** e crescem com as cargas semanais.
+> ℹ️ Esta página reúne **como acessar os dados publicados pelo projeto Áreas Protegidas SC** sobre as Unidades de Conservação de Santa Catarina e seus entornos: os serviços de mapa, o QGIS, o Excel, o Power BI, o SQL e o Python, com o dicionário de dados e 15 consultas prontas. Os números de cobertura são um **retrato de 02/11/2026** e crescem com as cargas semanais.
 {.is-info}
 
 > ⚠️ **ATENÇÃO:** os serviços de mapa e o download em CSV são **abertos e sem senha**. O acesso ao banco exige um login, e o administrador entrega o usuário, a senha e o endereço do servidor por canal privado. Nunca publique esses dados em relatórios, repositórios ou mensagens de grupo.
@@ -8,10 +8,81 @@
 
 ---
 
+## Comece por aqui
+
+Este guia foi escrito para servir tanto a quem **nunca abriu um programa de mapas** quanto a quem já usa SQL. Você não precisa ler tudo. Escolha abaixo o cartão que mais combina com você e siga os passos na ordem. Cada passo tem imagens da tela, com números que mostram onde clicar.
+
+<div class="cards">
+<div class="card c-green">
+<span class="card-emoji">🌱</span>
+<strong>Nunca usei mapas no computador</strong>
+<span class="time">cerca de 40 minutos</span>
+<ol>
+<li><a href="#conceitos-básicos-leia-antes-de-começar">Conceitos básicos</a></li>
+<li><a href="#31-instalar-o-qgis-no-windows">Instalar o QGIS</a></li>
+<li><a href="#33-conhecendo-a-tela-do-qgis">Conhecer a tela</a></li>
+<li><a href="#35-seu-primeiro-mapa-o-mapa-base">Seu primeiro mapa</a></li>
+<li><a href="#36-ver-as-ucs-no-mapa-wms">Ver as UCs no mapa</a></li>
+</ol>
+</div>
+<div class="card c-orange">
+<span class="card-emoji">📊</span>
+<strong>Só quero uma planilha</strong>
+<span class="time">cerca de 15 minutos</span>
+<ol>
+<li><a href="#uc-zona-de-amortecimento-e-buffer-de-abrangência">UC e entorno</a></li>
+<li><a href="#43-antes-de-importar-separador-decimal">Configurar o Excel</a></li>
+<li><a href="#42-uma-url-pronta-para-cada-base">Escolher a URL pronta</a></li>
+<li><a href="#44-importando-no-excel">Importar no Excel</a></li>
+</ol>
+</div>
+<div class="card">
+<span class="card-emoji">🧭</span>
+<strong>Já uso QGIS ou ArcGIS</strong>
+<span class="time">cerca de 10 minutos</span>
+<ol>
+<li><a href="#2-os-serviços-de-mapa-wms-wmts-wfs-e-wcs">Os serviços de mapa</a></li>
+<li><a href="#37-baixar-as-feições-com-os-atributos-wfs">Conectar o WFS</a></li>
+<li><a href="#8-dicionário-de-dados">Dicionário de dados</a></li>
+<li><a href="#313-receitas-de-análise-no-qgis">Receitas de análise</a></li>
+</ol>
+</div>
+<div class="card c-purple">
+<span class="card-emoji">🧑‍💻</span>
+<strong>Sei SQL, Power BI ou Python</strong>
+<span class="time">cerca de 10 minutos</span>
+<ol>
+<li><a href="#6-dbeaver-e-outros-clientes-sql">Conectar ao banco</a></li>
+<li><a href="#8-dicionário-de-dados">Dicionário de dados</a></li>
+<li><a href="#9-consultas-prontas">15 consultas prontas</a></li>
+<li><a href="#10-acesso-por-python">Python</a></li>
+</ol>
+</div>
+</div>
+
+> 💡 **Dica para quem está começando:** faça **um passo de cada vez** e só passe para o próximo quando a tela estiver igual à imagem do guia. Se algo sair diferente, procure o sintoma no capítulo [7. Problemas comuns](#7-problemas-comuns). Clique em qualquer imagem para vê-la em tela cheia, e use **Esc** ou o **✕** para voltar.
+{.is-success}
+
+### Como ler as caixas coloridas
+
+As caixas coloridas seguem sempre o mesmo código, para você saber de longe o que cada uma traz:
+
+<div class="legend">
+<span class="l-concept">📘 Conceito: explica uma ideia nova</span>
+<span class="l-info">ℹ️ Informação: contexto útil</span>
+<span class="l-ok">💡 Dica: atalho ou boa prática</span>
+<span class="l-warn">⚠️ Atenção: erro comum a evitar</span>
+<span class="l-check">✅ Confira: como saber se deu certo</span>
+</div>
+
+---
+
 ## Sumário
 
+- [Comece por aqui](#comece-por-aqui)
 - [Visão geral](#visão-geral)
 - [Mapa do acesso](#mapa-do-acesso)
+- [Conceitos básicos (leia antes de começar)](#conceitos-básicos-leia-antes-de-começar)
 - [1. Apresentação](#1-apresentação)
 - [2. Os serviços de mapa (WMS, WMTS, WFS e WCS)](#2-os-serviços-de-mapa-wms-wmts-wfs-e-wcs)
 - [3. QGIS](#3-qgis)
@@ -26,6 +97,7 @@
 - [12. Cobertura e limitações dos dados](#12-cobertura-e-limitações-dos-dados)
 - [13. Créditos e citação das fontes](#13-créditos-e-citação-das-fontes)
 - [14. Siglas](#14-siglas)
+- [Para aprender mais](#para-aprender-mais)
 - [Referências](#referências)
 
 ---
@@ -80,7 +152,162 @@ graph LR
 
 ---
 
+## Conceitos básicos (leia antes de começar)
+
+Esta seção explica, sem código, as poucas ideias que aparecem em todo o guia. Se você nunca trabalhou com mapas no computador, leia com calma: são cerca de 10 minutos e evitam a sensação de "não sei o que fazer com tanta informação". Quem já conhece pode pular para o [capítulo 1](#1-apresentação).
+
+### Dado geoespacial
+
+> 📘 **Conceito:** um **dado geoespacial** é uma informação que tem **onde** além de **o quê**. Uma planilha comum diz "foco de calor, 12/08/2024, intensidade 15 MW". Um dado geoespacial diz isso **e** a posição exata do foco na Terra (longitude e latitude). É a posição que permite desenhar o dado num mapa e cruzá-lo com outros dados, por exemplo "este foco caiu dentro do Parque Estadual da Serra do Tabuleiro?".
+{.is-concept}
+
+Todos os dados deste projeto são geoespaciais: cada UC tem o seu desenho (limite), cada foco de calor tem um ponto e cada pixel do MapBiomas tem uma posição.
+
+### Vetor e raster: as duas formas de guardar um mapa
+
+<div class="concept-fig">
+<svg viewBox="0 0 860 300" role="img" aria-label="Comparação entre dado vetorial (ponto, linha e polígono) e dado raster (grade de pixels)">
+  <rect x="10" y="10" width="410" height="280" rx="12" fill="none" stroke="currentColor" stroke-opacity=".25"/>
+  <text x="215" y="40" text-anchor="middle" font-size="18" font-weight="700">VETOR: desenhos com atributos</text>
+  <polygon points="40,110 120,80 190,105 200,180 130,215 55,190" fill="#2e7d32" fill-opacity=".35" stroke="#1b5e20" stroke-width="3"/>
+  <text x="120" y="240" text-anchor="middle" font-size="14">Polígono: uma UC</text>
+  <polyline points="230,200 260,150 300,165 330,110 380,95" fill="none" stroke="#1976d2" stroke-width="4"/>
+  <text x="310" y="240" text-anchor="middle" font-size="14">Linha: um rio</text>
+  <circle cx="150" cy="140" r="7" fill="#e53935" stroke="#7f0000" stroke-width="2"/>
+  <circle cx="345" cy="185" r="7" fill="#e53935" stroke="#7f0000" stroke-width="2"/>
+  <text x="215" y="272" text-anchor="middle" font-size="14">● Ponto: um foco de calor</text>
+  <rect x="440" y="10" width="410" height="280" rx="12" fill="none" stroke="currentColor" stroke-opacity=".25"/>
+  <text x="645" y="40" text-anchor="middle" font-size="18" font-weight="700">RASTER: uma grade de pixels</text>
+  <g transform="translate(505,60)">
+    <rect x="0" y="0" width="28" height="28" fill="#1f8d49"/><rect x="28" y="0" width="28" height="28" fill="#1f8d49"/><rect x="56" y="0" width="28" height="28" fill="#edde8e"/><rect x="84" y="0" width="28" height="28" fill="#edde8e"/><rect x="112" y="0" width="28" height="28" fill="#ffefc3"/><rect x="140" y="0" width="28" height="28" fill="#ffefc3"/><rect x="168" y="0" width="28" height="28" fill="#d4271e"/>
+    <rect x="0" y="28" width="28" height="28" fill="#1f8d49"/><rect x="28" y="28" width="28" height="28" fill="#1f8d49"/><rect x="56" y="28" width="28" height="28" fill="#1f8d49"/><rect x="84" y="28" width="28" height="28" fill="#edde8e"/><rect x="112" y="28" width="28" height="28" fill="#edde8e"/><rect x="140" y="28" width="28" height="28" fill="#ffefc3"/><rect x="168" y="28" width="28" height="28" fill="#d4271e"/>
+    <rect x="0" y="56" width="28" height="28" fill="#1f8d49"/><rect x="28" y="56" width="28" height="28" fill="#1f8d49"/><rect x="56" y="56" width="28" height="28" fill="#1f8d49"/><rect x="84" y="56" width="28" height="28" fill="#1f8d49"/><rect x="112" y="56" width="28" height="28" fill="#7a5900"/><rect x="140" y="56" width="28" height="28" fill="#7a5900"/><rect x="168" y="56" width="28" height="28" fill="#ffefc3"/>
+    <rect x="0" y="84" width="28" height="28" fill="#2532e4"/><rect x="28" y="84" width="28" height="28" fill="#1f8d49"/><rect x="56" y="84" width="28" height="28" fill="#1f8d49"/><rect x="84" y="84" width="28" height="28" fill="#1f8d49"/><rect x="112" y="84" width="28" height="28" fill="#7a5900"/><rect x="140" y="84" width="28" height="28" fill="#edde8e"/><rect x="168" y="84" width="28" height="28" fill="#edde8e"/>
+    <rect x="0" y="112" width="28" height="28" fill="#2532e4"/><rect x="28" y="112" width="28" height="28" fill="#2532e4"/><rect x="56" y="112" width="28" height="28" fill="#1f8d49"/><rect x="84" y="112" width="28" height="28" fill="#edde8e"/><rect x="112" y="112" width="28" height="28" fill="#edde8e"/><rect x="140" y="112" width="28" height="28" fill="#edde8e"/><rect x="168" y="112" width="28" height="28" fill="#ffefc3"/>
+    <rect x="28" y="28" width="28" height="28" fill="none" stroke="#ff6f00" stroke-width="4"/>
+    <g stroke="#ffffff" stroke-opacity=".5"><path d="M0 28H196M0 56H196M0 84H196M0 112H196M28 0V140M56 0V140M84 0V140M112 0V140M140 0V140M168 0V140" fill="none"/></g>
+  </g>
+  <text x="645" y="232" text-anchor="middle" font-size="14">Cada quadradinho (pixel) guarda um número:</text>
+  <text x="645" y="252" text-anchor="middle" font-size="14">o código da classe. 3 = Formação Florestal.</text>
+  <text x="645" y="274" text-anchor="middle" font-size="14">No MapBiomas, cada pixel tem 30 m × 30 m.</text>
+</svg>
+</div>
+
+*Figura A. À esquerda, dados vetoriais (as UCs, os polígonos do PRODES e dos alertas e os pontos dos focos). À direita, um dado raster (o mapa de uso e cobertura do MapBiomas).*
+
+> 📘 **Conceito:** no **vetor**, cada objeto é um desenho (ponto, linha ou polígono) acompanhado de uma linha de planilha com as informações dele. No **raster**, o mapa é uma imagem quadriculada, como uma foto, e cada pixel guarda um número. Uma analogia: o vetor é um **desenho a lápis com etiquetas**, o raster é um **mosaico de azulejos coloridos**.
+{.is-concept}
+
+| **Neste projeto** | **Tipo** | **Exemplo** |
+|----|----|----|
+| UCs, ZAs, Buffers, PRODES, MapBiomas Alerta | vetor (polígono) | o limite do Parque Nacional de São Joaquim |
+| FIRMS | vetor (ponto) | um foco de calor detectado pelo satélite |
+| MapBiomas Uso e Cobertura (mapa anual) | raster | o mapa de Santa Catarina em 2025, pixel a pixel |
+| MapBiomas Uso e Cobertura (mapbiomas_clip) | tabela, sem desenho | a área de floresta de cada UC em cada ano, já calculada |
+
+Para se aprofundar: [Introdução ao SIG, dados vetoriais](https://docs.qgis.org/latest/pt_BR/docs/gentle_gis_introduction/vector_data.html) e [dados raster](https://docs.qgis.org/latest/pt_BR/docs/gentle_gis_introduction/raster_data.html), da documentação oficial do QGIS em português.
+
+### Camada, feição e atributo
+
+> 📘 **Conceito:** um mapa no computador é montado como **folhas transparentes empilhadas**. Cada folha é uma **camada** (por exemplo, "UCs" ou "focos de calor"). Cada objeto de uma camada é uma **feição** (uma UC, um foco). As informações de cada feição são os **atributos**, organizados numa **tabela de atributos** que funciona como uma planilha: cada linha é uma feição, cada coluna é um atributo (nome, área, data...).
+{.is-concept}
+
+A ordem das camadas importa: a camada que está **em cima** na lista é desenhada **por cima** no mapa. Por isso o mapa base (o "fundo", com ruas e cidades) fica sempre por último na lista. Veja mais em [Dados de atributos vetoriais](https://docs.qgis.org/latest/pt_BR/docs/gentle_gis_introduction/vector_attribute_data.html).
+
+### Sistema de referência de coordenadas (SRC)
+
+> 📘 **Conceito:** a Terra é redonda e a tela é plana. O **sistema de referência de coordenadas** (SRC, ou CRS em inglês) é a "regra de tradução" entre os dois. Cada sistema tem um código **EPSG**. Não é preciso decorar nada: o QGIS converte entre eles sozinho, desde que cada camada saiba em que sistema está, e as deste projeto já sabem.
+{.is-concept}
+
+| **Código** | **Nome** | **Onde aparece neste guia** |
+|----|----|----|
+| [EPSG:4674](https://epsg.io/4674) | SIRGAS 2000 (graus de longitude e latitude) | sistema oficial do Brasil, usado em **todos os dados** publicados |
+| EPSG:3857 | Pseudo-Mercator | mapas da web, como o OpenStreetMap. O QGIS usa este quando você começa pelo mapa base |
+| [EPSG:31982](https://epsg.io/31982) | SIRGAS 2000 / UTM zona 22S (metros) | quando você precisa **medir** distâncias ou áreas em metros em Santa Catarina |
+
+> ⚠️ **Atenção:** nunca calcule área ou distância numa camada em graus (EPSG:4674). Um "grau" não tem tamanho fixo em metros. Para medir, reprojete para EPSG:31982 ou use as colunas de área que já vêm calculadas no projeto. Leia mais em [Sistemas de referência de coordenadas](https://docs.qgis.org/latest/pt_BR/docs/gentle_gis_introduction/coordinate_reference_systems.html).
+{.is-warning}
+
+### Mapa base
+
+> 📘 **Conceito:** o **mapa base** é o fundo de referência (ruas, cidades, rios, relevo) sobre o qual você coloca os seus dados, como o mapa de papel embaixo das folhas transparentes. O mais usado é o **OpenStreetMap**, gratuito e já incluído no QGIS. Ele serve só para orientação: não é um dado de análise.
+{.is-concept}
+
+### UC, Zona de Amortecimento e Buffer de Abrangência
+
+<div class="concept-fig">
+<svg viewBox="0 0 860 330" role="img" aria-label="Uma UC com o seu entorno e três focos de calor: um dentro da UC, um no entorno e um fora">
+  <text x="215" y="30" text-anchor="middle" font-size="17" font-weight="700">UC sem ZA oficial: entorno = Buffer de 3.000 m</text>
+  <path d="M95 175 C 90 95, 170 60, 230 80 C 300 100, 345 140, 330 205 C 315 265, 220 285, 160 265 C 110 250, 98 225, 95 175 Z" fill="#1976d2" fill-opacity=".08" stroke="#1565c0" stroke-width="3" stroke-dasharray="10 7" transform="translate(-30,-25) scale(1.15)"/>
+  <path d="M125 175 C 120 115, 180 95, 230 110 C 280 125, 305 150, 295 200 C 285 240, 220 250, 175 238 C 140 228, 127 210, 125 175 Z" fill="#2e7d32" fill-opacity=".35" stroke="#1b5e20" stroke-width="3"/>
+  <text x="212" y="182" text-anchor="middle" font-size="16" font-weight="700">UC</text>
+  <circle cx="240" cy="205" r="8" fill="#e53935" stroke="#7f0000" stroke-width="2"/>
+  <circle cx="345" cy="120" r="8" fill="#e53935" stroke="#7f0000" stroke-width="2"/>
+  <circle cx="405" cy="255" r="8" fill="#9e9e9e" stroke="#424242" stroke-width="2"/>
+  <text x="140" y="305" font-size="13">● dentro da UC → tipo_cruzamento = UC</text>
+  <text x="300" y="98" font-size="13">● no anel → BUFFER_ABRANGENCIA</text>
+  <text x="330" y="285" font-size="13">● fora do entorno → não entra</text>
+  <line x1="440" y1="20" x2="440" y2="320" stroke="currentColor" stroke-opacity=".2"/>
+  <text x="650" y="30" text-anchor="middle" font-size="17" font-weight="700">UC com ZA oficial: entorno = ZA</text>
+  <path d="M520 170 C 515 90, 600 55, 680 70 C 770 90, 815 150, 790 220 C 770 280, 660 300, 590 280 C 540 265, 522 230, 520 170 Z" fill="#ef6c00" fill-opacity=".15" stroke="#e65100" stroke-width="3"/>
+  <path d="M585 175 C 580 125, 630 105, 680 118 C 730 130, 750 160, 740 200 C 730 235, 670 245, 630 235 C 600 227, 588 208, 585 175 Z" fill="#2e7d32" fill-opacity=".35" stroke="#1b5e20" stroke-width="3"/>
+  <text x="665" y="182" text-anchor="middle" font-size="16" font-weight="700">UC</text>
+  <text x="760" y="110" font-size="15" font-weight="700" fill="#e65100" style="fill:#e65100">ZA</text>
+  <circle cx="560" cy="230" r="8" fill="#e53935" stroke="#7f0000" stroke-width="2"/>
+  <text x="520" y="315" font-size="13">● no anel laranja → tipo_cruzamento = ZA</text>
+</svg>
+</div>
+
+*Figura B. Cada UC é analisada em duas partes que não se sobrepõem: a própria UC e o anel do entorno. O entorno é a ZA oficial, quando existe, ou o Buffer de Abrangência de 3.000 m.*
+
+> 📘 **Conceito:** a **Unidade de Conservação (UC)** é a área protegida criada por lei, como um parque ou uma APA ([Lei nº 9.985/2000, SNUC](https://www.planalto.gov.br/ccivil_03/leis/l9985.htm)). A **Zona de Amortecimento (ZA)** é a faixa ao redor da UC com regras de uso definidas oficialmente. Só 12 das 186 UCs têm ZA cadastrada. Para as demais, o projeto desenha um **Buffer de Abrangência**: uma faixa de 3.000 m ao redor da UC, que serve só para análise e **não tem valor jurídico**.
+{.is-concept}
+
+A coluna **tipo_cruzamento** (ou **aoi_type**, no MapBiomas) diz em qual parte cada registro caiu: `UC`, `ZA` ou `BUFFER_ABRANGENCIA`. Ela aparece em quase todas as tabelas e é o filtro mais usado do guia.
+
+> ⚠️ **Atenção:** algumas UCs se sobrepõem (um parque dentro de uma APA, por exemplo). Por isso, um mesmo foco pode aparecer em duas UCs. Somar UCs diferentes pode contar o mesmo foco duas vezes. A soma **por UC** está sempre correta.
+{.is-warning}
+
+### Serviço de mapa e URL
+
+> 📘 **Conceito:** um **serviço de mapa** é um endereço na internet (uma **URL**) que entrega dados quando recebe um pedido. Pense numa **janela de pedidos de uma lanchonete**: você não entra na cozinha (o banco de dados), só faz o pedido pela janela e recebe o prato pronto. A URL é o pedido escrito: ela diz **qual camada**, **em qual formato** e **com qual filtro** você quer os dados.
+{.is-concept}
+
+O servidor que atende esses pedidos se chama **GeoServer**. Os pedidos seguem padrões internacionais (WMS, WFS, WCS e WMTS), por isso funcionam no QGIS, no ArcGIS, no Excel, no Power BI e no Python. O [capítulo 2](#2-os-serviços-de-mapa-wms-wmts-wfs-e-wcs) explica cada um, e você pode testar um agora mesmo: [clique aqui para pedir ao servidor um mapa das UCs](https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wms?service=WMS&version=1.1.1&request=GetMap&layers=buffer_abrangencia,za_oficial,uc&styles=&bbox=-54.0,-29.45,-48.2,-25.9&width=980&height=600&srs=EPSG:4674&format=image/png&bgcolor=0xFFFFFF). O navegador abre uma imagem como a da Figura C.
+
+![](img/navegador-wms-getmap.png)
+
+*Figura C. Resposta real do serviço WMS a um pedido feito pelo navegador: UCs (verde), ZAs oficiais (laranja) e Buffers de Abrangência (azul tracejado).*
+
+### Tabela, CSV, banco de dados e SQL
+
+> 📘 **Conceito:** um **CSV** é uma planilha em texto puro, com as colunas separadas por vírgula, que qualquer programa abre. Um **banco de dados** é um "arquivo de planilhas" profissional, que guarda muitas tabelas relacionadas e responde perguntas rápido. **SQL** é a língua usada para fazer essas perguntas, por exemplo "quantos focos houve em cada UC em 2024?". Uma **view** é uma tabela pronta para leitura, montada a partir das tabelas internas. Você só enxerga as views do esquema **reporting**, e elas não podem ser alteradas.
+{.is-concept}
+
+Você **não precisa** saber SQL para usar este guia: o QGIS e o Excel acessam os dados pelos serviços de mapa, sem senha e sem código.
+
+### Glossário rápido do que aparece na tela
+
+| **Termo** | **O que significa na prática** |
+|----|----|
+| Projeto (.qgz) | o arquivo do QGIS que guarda as camadas abertas, as cores e o enquadramento. Não guarda os dados em si |
+| Camada | uma "folha" do mapa: UCs, focos, mapa base |
+| Feição | um objeto da camada: uma UC, um foco |
+| Atributo | uma informação da feição: nome, área, data |
+| Tabela de atributos | a planilha com todas as feições de uma camada |
+| Simbologia | as cores, espessuras e símbolos usados para desenhar a camada |
+| Extensão | o retângulo da área visível no mapa |
+| Zoom e panorâmica | aproximar ou afastar o mapa, e arrastá-lo para os lados |
+| Filtro | uma condição que esconde as feições que não interessam, por exemplo só o ano de 2024 |
+| Reprojetar | converter a camada de um sistema de coordenadas para outro |
+| Exportar ("Salvar como") | gravar uma cópia da camada no seu computador, num formato de arquivo |
+
+---
+
 ## 1. Apresentação
+
+> 💡 **Primeira vez aqui?** Comece pelo cartão certo em [Comece por aqui](#comece-por-aqui) e leia os [Conceitos básicos](#conceitos-básicos-leia-antes-de-começar). Este capítulo é um resumo para quem já conhece as ferramentas.
+{.is-success}
 
 Este guia mostra como os operadores do projeto Áreas Protegidas SC acessam os dados que o sistema publica sobre as Unidades de Conservação (UCs) de Santa Catarina e seus entornos: desmatamento (PRODES e MapBiomas Alerta), focos de calor (NASA FIRMS) e uso e cobertura da terra (MapBiomas).
 
@@ -127,7 +354,10 @@ Os dois têm as mesmas permissões: leem apenas as views de reporting, não cons
 
 ## 2. Os serviços de mapa (WMS, WMTS, WFS e WCS)
 
-Os serviços seguem padrões abertos do Open Geospatial Consortium (OGC), o que permite usá-los em qualquer software de GIS. A diferença entre eles está no que cada um devolve:
+> 📘 **Conceito:** os quatro serviços são quatro "janelas de pedido" diferentes no mesmo servidor. Cada uma devolve o dado num formato: imagem pronta (WMS e WMTS), feições com atributos (WFS) ou o raster original (WCS). Se ainda não leu, veja [Serviço de mapa e URL](#serviço-de-mapa-e-url) nos conceitos básicos.
+{.is-concept}
+
+Os serviços seguem padrões abertos do Open Geospatial Consortium ([OGC](https://www.ogc.org/standards/)), o que permite usá-los em qualquer software de GIS. A diferença entre eles está no que cada um devolve:
 
 **Tabela 3.** Diferença entre os serviços OGC.
 
@@ -139,6 +369,9 @@ Os serviços seguem padrões abertos do Open Geospatial Consortium (OGC), o que 
 | WCS (Web Coverage Service) | o raster com o valor original de cada pixel | o arquivo de imagem de satélite classificado | for fazer análise raster (MapBiomas) |
 
 Todos partem do mesmo endereço base, mas cada um tem o seu final. A base sozinha não funciona.
+
+> 💡 **Qual escolher?** Para **ver** um mapa, use WMS (ou WMTS, mais rápido). Para **analisar**, filtrar, contar ou levar ao Excel, use WFS. Para trabalhar com os **pixels** do MapBiomas, use WCS. Na dúvida, comece pelo WMS no QGIS ([seção 3.6](#36-ver-as-ucs-no-mapa-wms)).
+{.is-success}
 
 **Tabela 4.** Endereços dos serviços.
 
@@ -211,49 +444,218 @@ https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wfs?service=WFS&vers
 
 Para baixar em partes (por exemplo, de 1.000 em 1.000), combine count e startIndex: a primeira parte usa startIndex=0, a segunda startIndex=1000, e assim por diante. O serviço aceita até 1.000.000 de registros por requisição, mais do que todas as bases têm hoje; a divisão só é útil em conexões lentas.
 
+Para se aprofundar nos parâmetros, veja a documentação do GeoServer sobre [WMS](https://docs.geoserver.org/stable/en/user/services/wms/index.html) e [WFS](https://docs.geoserver.org/stable/en/user/services/wfs/index.html) (em inglês).
+
 ## 3. QGIS
 
-Os passos valem para o QGIS 3.28 ou mais recente. Todos começam em **Camada &gt; Gerenciador de Fontes de Dados** (atalho Ctrl+L).
+> 📘 **Conceito:** o **QGIS** é um programa **gratuito e de código aberto** para ver, analisar e montar mapas. É o equivalente livre do ArcGIS, funciona em Windows, macOS e Linux e está em português. Com ele você abre as camadas do projeto, cruza com os seus próprios dados, filtra, mede, calcula estatísticas e monta mapas para relatório.
+{.is-concept}
 
-### 3.1 Ver os mapas (WMS ou WMTS)
+Este capítulo começa do zero: instalar, conhecer a tela, fazer o primeiro mapa e só depois analisar. As telas foram capturadas no QGIS 3.28 em português. Nas versões mais novas, a aparência muda um pouco, mas os menus e os passos são os mesmos. Os números laranja nas imagens seguem a ordem dos passos do texto.
 
-1. Abra a aba **WMS/WMTS** e clique em **Novo**.
-2. Nome: Áreas Protegidas SC. URL: https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wms. Deixe a autenticação em branco e clique em **OK**.
-3. Clique em **Conectar**, selecione as camadas desejadas e clique em **Adicionar**.
-4. Para navegação mais rápida, crie uma segunda conexão com a URL WMTS https://areasprotegidas-sc.com/geoserver/protected_areas_sc/gwc/service/wmts.
+### 3.1 Instalar o QGIS no Windows
 
-![](img/image4.png)
+1. Abra o site oficial [qgis.org/download](https://qgis.org/download/). Baixe o QGIS **só** desse endereço.
+2. A primeira tela pede uma doação, que é opcional. Para baixar sem doar, clique em **Skip it and go to download** (passo 1 da Figura 1).
 
-### 3.2 Baixar feições para análise (WFS)
+![](img/qgis-download-1-pular-doacao.png)
 
-1. Abra a aba **WFS / OGC API - Features** e clique em **Novo**.
-2. URL: https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wfs. Versão: **2.0.0** (ou Detectar). Autenticação em branco. **OK**.
-3. Clique em **Conectar**, escolha a camada e clique em **Adicionar**.
-4. Em camadas grandes (como firms_clip e prodes_clip), marque **Apenas requisitar feições que se sobrepõem à extensão da visualização** para baixar só o que está na tela.
+*Figura 1. Página de download do QGIS: o botão laranja "Skip it and go to download" leva aos instaladores.*
 
-Com o WFS a camada chega com todos os atributos: dá para abrir a tabela de atributos, filtrar, usar a calculadora de campos, gerar estatísticas e exportar (botão direito &gt; Exportar &gt; Salvar feições como) para Shapefile, GeoPackage ou planilha.
+3. Confira se o sistema escolhido é **Windows** (passo 1 da Figura 2).
+4. Clique em **Download LTR** (passo 2). LTR quer dizer *Long Term Release*, a versão de longo prazo, mais estável e indicada para quem está começando.
 
-### 3.3 Baixar o raster MapBiomas (WCS)
+![](img/qgis-download-2-escolher-ltr.png)
 
-1. Abra a aba **WCS** e clique em **Novo**.
-2. URL: https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wcs. **OK** e **Conectar**.
-3. Escolha protected_areas_sc\_\_mapbiomas_uso_cobertura\_&lt;ano&gt; e clique em **Adicionar**.
+*Figura 2. Escolha do sistema operacional (1) e da versão de longo prazo, LTR (2).*
 
-O WCS entrega o código da classe em cada pixel, sem cores. Para colorir, use o estilo oficial do MapBiomas (arquivo QML da Coleção 11) ou carregue o mesmo ano pelo WMS, que já vem colorido. Para traduzir os códigos, use a legenda (mapbiomas_legend_class).
+5. Quando o download terminar, abra o arquivo baixado (algo como `QGIS-OSGeo4W-3.44.x.msi`) na pasta **Downloads**.
+6. No instalador, clique em **Next**, marque **I accept the terms in the License Agreement**, clique em **Next** de novo, mantenha a pasta sugerida e clique em **Install**. Se o Windows perguntar se o programa pode fazer alterações, responda **Sim**.
+7. A instalação leva alguns minutos. Ao final, clique em **Finish**.
 
-> 💡 **Dica:** Para recortar o raster de uma UC, carregue a UC pelo WFS e use Raster > Extração > Recortar Raster pela Camada de Máscara. Para calcular área por classe, prefira a tabela mapbiomas_clip, que já traz o cálculo geodésico pronto.
+> ✅ **Confira:** no menu Iniciar do Windows aparece uma pasta **QGIS 3.44** com o atalho **QGIS Desktop 3.44**. É ele que você vai usar. Os outros atalhos da pasta (OSGeo4W Shell, Qt Designer e semelhantes) são ferramentas avançadas e podem ser ignorados.
+{.is-check}
+
+> 💡 **Dica:** no macOS e no Linux, escolha o seu sistema na mesma página (passo 1 da Figura 2) e siga as instruções que aparecem. Em computadores do laboratório sem permissão de administrador, peça à equipe de TI para instalar a versão LTR.
 {.is-success}
 
+### 3.2 Abrir o QGIS e criar um projeto
 
-### 3.4 ArcGIS Pro
+1. Abra o **QGIS Desktop** pelo menu Iniciar. A primeira abertura demora um pouco mais.
+2. Aparece a tela de boas-vindas (Figura 3), com notícias e projetos recentes. Dê dois cliques em **Novo Projeto Vazio**, à direita, ou use o atalho <kbd>Ctrl</kbd>+<kbd>N</kbd>.
 
-No ArcGIS Pro, use **Inserir &gt; Conexões &gt; Servidor &gt; Novo servidor WMS** (ou **Novo servidor WFS** / **Novo servidor WCS**) e informe as mesmas URLs, sem usuário e senha. As conexões aparecem no painel Catálogo, em Servidores, de onde as camadas são arrastadas para o mapa.
+![](img/qgis-00-tela-de-boas-vindas.png)
 
-### 3.5 Receitas de análise no QGIS
+*Figura 3. Tela de boas-vindas do QGIS. "Novo Projeto Vazio" fica à direita, abaixo de "Projeção modelo".*
 
-#### Filtrar uma camada
+> 📘 **Conceito:** um **projeto** do QGIS é como uma pasta de trabalho: guarda quais camadas estão abertas, as cores de cada uma e a área do mapa que você estava olhando. Salve com <kbd>Ctrl</kbd>+<kbd>S</kbd> (o arquivo termina em **.qgz**). Os dados do projeto Áreas Protegidas SC continuam no servidor: ao reabrir o projeto, o QGIS busca a versão mais recente.
+{.is-concept}
 
-Clique com o botão direito na camada, escolha **Filtrar...** e escreva a expressão. Exemplos:
+### 3.3 Conhecendo a tela do QGIS
+
+Com um mapa aberto, a tela tem seis áreas. Vale a pena olhar a Figura 4 com calma antes de seguir: ela é o "mapa" que você vai usar em todos os passos seguintes.
+
+![](img/qgis-01-interface.png)
+
+*Figura 4. As seis áreas da tela do QGIS, numeradas de acordo com a tabela abaixo.*
+
+| **Nº** | **Área** | **Para que serve** |
+|:--:|----|----|
+| 1 | Barra de menus | todos os comandos do programa, agrupados por assunto: Projeto, Camada, Vetor, Raster... |
+| 2 | Barras de ferramentas | atalhos com ícones para os comandos mais usados: abrir, salvar, mover o mapa, aproximar, identificar |
+| 3 | Navegador | mostra as pastas do computador e as conexões com servidores. Dá para arrastar camadas daqui para o mapa |
+| 4 | Painel Camadas | a lista das "folhas" do mapa. A caixinha liga e desliga cada camada, e a ordem define quem fica por cima |
+| 5 | Área do mapa | onde o mapa é desenhado |
+| 6 | Barra de status | mostra a coordenada do cursor, a escala e, no canto direito, o sistema de coordenadas do projeto (aqui EPSG:3857) |
+
+> 💡 **Dica:** se um painel sumir, abra **Exibir > Painéis** e marque de novo **Navegador** ou **Camadas**. Para voltar ao layout padrão, feche e abra o QGIS.
+{.is-success}
+
+### 3.4 Mover o mapa e atalhos essenciais
+
+Você não precisa decorar tudo. Comece pelos quatro primeiros atalhos da tabela e consulte o resto quando precisar.
+
+| **Para** | **Faça** |
+|----|----|
+| Aproximar ou afastar | gire a **roda do mouse** sobre o mapa |
+| Arrastar o mapa | segure a **barra de espaço** e mova o mouse, ou use a ferramenta da **mão** (ícone na barra 2) |
+| Ver o estado inteiro de novo | botão direito na camada **uc** > **Aproximar para camada(s)** |
+| Voltar para o enquadramento anterior | ícone da lupa com a seta para trás, na barra 2 |
+| Novo projeto / Salvar projeto | <kbd>Ctrl</kbd>+<kbd>N</kbd> / <kbd>Ctrl</kbd>+<kbd>S</kbd> |
+| Gerenciador de Fontes de Dados (adicionar camadas) | <kbd>Ctrl</kbd>+<kbd>L</kbd> |
+| Abrir a tabela de atributos da camada selecionada | <kbd>F6</kbd> |
+| Ferramenta Identificar feições | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> |
+| Painel de estilo da camada (cores rápidas) | <kbd>F7</kbd> |
+| Caixa de Ferramentas de Processamento | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd> |
+| Procurar qualquer comando ou camada pelo nome | <kbd>Ctrl</kbd>+<kbd>K</kbd> |
+
+A descrição completa de cada parte da tela está no [manual do usuário do QGIS, capítulo Interface](https://docs.qgis.org/latest/pt_BR/docs/user_manual/introduction/qgis_gui.html).
+
+### 3.5 Seu primeiro mapa: o mapa base
+
+O primeiro passo de todo mapa é colocar um fundo de referência, com ruas e cidades, para você se localizar.
+
+1. No painel **Navegador** (área 3 da Figura 4), clique na setinha ao lado de **XYZ Tiles** (passo 1 da Figura 5).
+2. Dê dois cliques em **OpenStreetMap** (passo 2).
+
+![](img/qgis-02-xyz-osm.png)
+
+*Figura 5. No Navegador, abra "XYZ Tiles" (1) e dê dois cliques em "OpenStreetMap" (2).*
+
+3. O mapa do mundo aparece. Gire a roda do mouse sobre o sul do Brasil para aproximar até Santa Catarina.
+
+![](img/qgis-03-mapa-base-osm.png)
+
+*Figura 6. O mapa base OpenStreetMap aproximado em Santa Catarina. A camada aparece no painel Camadas, à esquerda.*
+
+> ✅ **Confira:** o painel **Camadas** mostra a linha **OpenStreetMap** com a caixinha marcada, e o mapa mostra Florianópolis, Joinville e Chapecó. Se o mapa ficou em branco, verifique a internet: o mapa base vem da web.
+{.is-check}
+
+### 3.6 Ver as UCs no mapa (WMS)
+
+O **WMS** entrega o mapa já colorido, pronto para ver. É o jeito mais rápido de enxergar as UCs, as Zonas de Amortecimento e os Buffers. A conexão com o servidor é criada **uma única vez**: depois ela fica salva no seu QGIS.
+
+**Criar a conexão (só na primeira vez)**
+
+1. Abra **Camada > Gerenciador de Fontes de Dados** (atalho <kbd>Ctrl</kbd>+<kbd>L</kbd>).
+2. Na lista da esquerda, clique em **WMS/WMTS** e depois no botão **Novo**.
+3. Em **Nome**, escreva `Áreas Protegidas SC (WMS)` (passo 1 da Figura 7).
+4. Em **URL**, cole o endereço abaixo (passo 2). Use o botão **Copiar** do quadro para não errar nenhuma letra.
+
+```text
+https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wms
+```
+
+5. Deixe **Autenticação** como está, em **Sem autenticação**, e clique em **OK** (passo 3).
+
+![](img/qgis-04-nova-conexao-wms.png)
+
+*Figura 7. Janela "Criar uma Nova Conexão WMS": nome (1), URL terminada em /wms (2) e OK (3).*
+
+> ⚠️ **Atenção:** não preencha usuário e senha. Os serviços de mapa são abertos e, com senha, o servidor responde "erro 401". Confira também se a URL termina em **/wms**: um endereço terminado em /wfs ou /wcs nesta janela não funciona.
+{.is-warning}
+
+**Adicionar as camadas**
+
+6. De volta ao Gerenciador, confira se a conexão criada está escolhida na lista de cima (passo 1 da Figura 8) e clique em **Conectar** (passo 2).
+7. A lista mostra todas as camadas publicadas. Clique na linha **uc** (passo 3). Para escolher várias, segure <kbd>Ctrl</kbd> e clique também em **za_oficial** e **buffer_abrangencia**.
+8. Clique em **Adicionar** (passo 4) e depois em **Fechar**.
+
+![](img/qgis-05-gerenciador-wms.png)
+
+*Figura 8. Gerenciador de Fontes de Dados, aba WMS/WMTS: conexão (1), Conectar (2), camada uc selecionada (3) e Adicionar (4).*
+
+![](img/qgis-06-mapa-wms-sc.png)
+
+*Figura 9. Resultado: as UCs (verde), as Zonas de Amortecimento oficiais (laranja) e os Buffers de Abrangência (azul tracejado) sobre o mapa base.*
+
+> ✅ **Confira:** o painel Camadas mostra **uc**, **za_oficial**, **buffer_abrangencia** e **OpenStreetMap**, nessa ordem. Aproxime na região de Florianópolis com a roda do mouse: os limites ficam mais detalhados, como na Figura 10.
+{.is-check}
+
+![](img/qgis-06b-mapa-wms-detalhe.png)
+
+*Figura 10. Aproximando na Grande Florianópolis: o Parque Estadual da Serra do Tabuleiro, as UCs da Ilha e os Buffers de 3.000 m das UCs sem ZA oficial.*
+
+> 💡 **Dica:** para navegar mais rápido, principalmente em oficinas, crie uma segunda conexão igual, com a URL WMTS `https://areasprotegidas-sc.com/geoserver/protected_areas_sc/gwc/service/wmts`. O WMTS entrega o mesmo mapa em ladrilhos pré-gerados.
+{.is-success}
+
+### 3.7 Baixar as feições com os atributos (WFS)
+
+O WMS é uma "fotografia": dá para ver, mas não dá para filtrar nem calcular. Para analisar, use o **WFS**, que traz cada feição com todos os seus atributos.
+
+1. Abra o Gerenciador (<kbd>Ctrl</kbd>+<kbd>L</kbd>) e clique em **WFS / OGC API - Feições**.
+2. Clique em **Novo**, escreva o nome `Áreas Protegidas SC (WFS)` e cole a URL:
+
+```text
+https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wfs
+```
+
+3. Em **Versão**, escolha **2.0.0** (ou **Detectar**). Deixe a autenticação em branco e clique em **OK**.
+4. Com a conexão escolhida (passo 1 da Figura 11), clique em **Conectar** (passo 2).
+5. Clique na linha **Unidades de Conservação** (passo 3) e em **Adicionar** (passo 4).
+
+![](img/qgis-07-gerenciador-wfs.png)
+
+*Figura 11. Aba WFS do Gerenciador: conexão (1), Conectar (2), camada protected_areas_sc:uc (3) e Adicionar (4). Cada camada tem um título em português na primeira coluna.*
+
+> ⚠️ **Atenção:** nas camadas grandes (**firms_clip** e **prodes_clip**), mantenha marcada a opção **Apenas solicitar feições que se sobrepõem na medida vista**, no rodapé da janela. Assim o QGIS baixa só o que está na tela, e o mapa não trava.
+{.is-warning}
+
+**Ver os dados de uma UC: a ferramenta Identificar**
+
+6. Clique no ícone **Identificar feições** (o "i" azul com o cursor, destacado no topo da Figura 12) ou use <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd>.
+7. Clique sobre uma UC no mapa (passo 1). Ela fica destacada em vermelho, e o painel **Identificar Resultados** (passo 2) lista todos os atributos dela: nome, categoria, esfera, órgão gestor, área e datas.
+
+![](img/qgis-09-identificar.png)
+
+*Figura 12. Ferramenta Identificar: o clique sobre o Parque Estadual da Serra do Tabuleiro (1) mostra os atributos no painel à direita (2).*
+
+**Ver todos os dados de uma vez: a tabela de atributos**
+
+8. No painel Camadas, clique com o botão direito na camada **uc (WFS)** e escolha **Abrir tabela de atributos** (ou selecione a camada e aperte <kbd>F6</kbd>).
+
+![](img/qgis-08-tabela-atributos.png)
+
+*Figura 13. Tabela de atributos da camada uc: cada linha é uma UC e cada coluna um atributo. Clique no título de uma coluna para ordenar.*
+
+> ✅ **Confira:** a tabela tem uma linha para cada UC cadastrada (186 na leitura de 02/11/2026). O significado de cada coluna está no [dicionário de dados](#8-dicionário-de-dados), seção 8.3.
+{.is-check}
+
+### 3.8 Filtrar uma camada
+
+Filtrar é mostrar só o que interessa, por exemplo os focos de calor **dentro** das UCs a partir de 2020. Aqui o exemplo usa a camada **firms_clip** (focos de calor), adicionada pelo WFS como no passo anterior.
+
+1. No painel Camadas, clique com o botão direito em **firms_clip** e escolha **Filtrar...**.
+2. Na lista **Campos** (passo 1 da Figura 14), clique em um campo, por exemplo **tipo_cruzamento**.
+3. Clique em **Tudo**, abaixo de **Valores** (passo 2), para ver os valores existentes: BUFFER_ABRANGENCIA, UC e ZA.
+4. No quadro de baixo (passo 3), escreva a condição. Dê dois cliques nos campos e valores para inseri-los sem erro de digitação.
+5. Clique em **Testar** para ver quantas feições passam no filtro e depois em **OK** (passo 4).
+
+![](img/qgis-10-filtro.png)
+
+*Figura 14. Construtor de filtro: campos (1), valores do campo escolhido (2), expressão (3) e OK (4).*
+
+Exemplos de filtros prontos para copiar:
 
 ```text
 "tipo_cruzamento" = 'UC' AND "nr_ano" >= 2020
@@ -261,18 +663,88 @@ Clique com o botão direito na camada, escolha **Filtrar...** e escreva a expres
 "aoi_type" = 'UC' AND "class_code" IN (3, 4, 5, 6, 49)
 ```
 
+> 💡 **Dica:** nomes de campo vão entre **aspas duplas** ("nr_ano") e textos entre **aspas simples** ('UC'). Um ícone de funil aparece ao lado da camada filtrada. Para remover o filtro, abra **Filtrar...** de novo e clique em **Limpar**.
+{.is-success}
 
-#### Mapa de calor dos focos
+### 3.9 Mapa de calor dos focos
 
-1. Carregue firms_clip pelo WFS e, se quiser, filtre o período ("nr_ano" &gt;= 2020).
-2. Em **Propriedades &gt; Simbologia**, troque Símbolo simples por **Mapa de calor**.
-3. Defina o **Raio** em quilômetros (2 a 5 km funciona bem na escala do estado) e escolha uma rampa de cores.
+O mapa de calor mostra onde os focos se concentram, com cores mais fortes nas áreas com mais focos.
 
-Para um raster de densidade que pode ser salvo e analisado, use **Processamento &gt; Caixa de Ferramentas &gt; Mapa de calor (Estimativa de densidade Kernel)** sobre a camada reprojetada para SIRGAS 2000 / UTM 22S (EPSG:31982), para o raio ficar em metros.
+1. Selecione a camada **firms_clip** e abra **Propriedades** (botão direito > **Propriedades**, ou dois cliques na camada). Vá até a aba **Simbologia**.
+2. Na lista do topo (passo 1 da Figura 15), troque **Símbolo simples** por **Mapa de calor**.
+3. Em **Raio** (passo 2), comece com 10 a 12 milímetros e escolha um **Gradiente de cores** que vá do transparente ao vermelho.
+4. Clique em **OK** (passo 3).
+
+![](img/qgis-11-simbologia-mapa-calor.png)
+
+*Figura 15. Aba Simbologia: tipo "Mapa de calor" (1), raio (2) e OK (3).*
+
+![](img/qgis-12-mapa-calor.png)
+
+*Figura 16. Mapa de calor dos focos de calor publicados, sobre as UCs (verde) e o mapa base.*
+
+> ⚠️ **Atenção:** o mapa de calor é uma forma de **visualizar**, não uma medida. Para números, conte os focos por UC e por ano ([receita na seção 3.13](#313-receitas-de-análise-no-qgis)). E lembre: um foco é uma detecção de calor num pixel de 375 m (VIIRS) ou 1 km (MODIS), não a área queimada.
+{.is-warning}
+
+### 3.10 MapBiomas: ver o mapa (WMS) e baixar o raster (WCS)
+
+**Para ver o mapa de um ano**, use a mesma conexão WMS do [passo 3.6](#36-ver-as-ucs-no-mapa-wms) e adicione a camada **mapbiomas_uso_cobertura_2025** (ou de outro ano, de 1985 a 2025). Ela já vem com as cores oficiais do MapBiomas.
+
+![](img/qgis-14-mapbiomas-wms.png)
+
+*Figura 17. Uso e cobertura da terra em 2025 (MapBiomas, Coleção 11) pelo WMS, com as UCs por cima.*
+
+**Para analisar os pixels**, baixe o raster pelo **WCS**:
+
+1. No Gerenciador (<kbd>Ctrl</kbd>+<kbd>L</kbd>), clique em **WCS** > **Novo**, dê um nome e cole a URL `https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wcs`. **OK** e **Conectar**.
+2. Escolha **protected_areas_sc__mapbiomas_uso_cobertura_&lt;ano&gt;** e clique em **Adicionar**.
+
+> 📘 **Conceito:** o WCS entrega o **código da classe** em cada pixel, sem cores. Um pixel com valor 3 é Formação Florestal, 15 é Pastagem, 24 é Área Urbanizada. A lista completa de códigos está na camada **mapbiomas_legend_class** (WFS) e na [página oficial de códigos de legenda do MapBiomas](https://brasil.mapbiomas.org/codigos-de-legenda/).
+{.is-concept}
+
+> 💡 **Dica:** para saber a área de cada classe numa UC ou no entorno, **não** é preciso processar o raster: a tabela **mapbiomas_clip** já traz a área calculada, ano a ano. Use o raster só para áreas desenhadas por você (veja a receita na [seção 3.13](#313-receitas-de-análise-no-qgis)).
+{.is-success}
+
+### 3.11 Salvar os dados no seu computador
+
+As camadas WMS e WFS vêm do servidor. Para trabalhar sem internet ou entregar um arquivo, salve uma cópia:
+
+1. Clique com o botão direito na camada (por exemplo **uc (WFS)**) e escolha **Exportar > Salvar feições como...**.
+2. Em **Formato** (passo 1 da Figura 18), escolha **GeoPackage**, o formato recomendado.
+3. Em **Nome do arquivo** (passo 2), clique nos três pontinhos e escolha a pasta e o nome do arquivo.
+4. Clique em **OK** (passo 3).
+
+![](img/qgis-13-salvar-como.png)
+
+*Figura 18. Janela "Salvar camada vetorial como": formato GeoPackage (1), local e nome do arquivo (2) e OK (3).*
+
+> 💡 **Dica:** prefira **GeoPackage** (.gpkg) ou **GeoJSON**. O Shapefile corta os nomes das colunas em 10 letras. Para levar a tabela ao Excel, escolha **Planilha XLSX** ou **CSV** no mesmo campo Formato.
+{.is-success}
+
+Por fim, salve o projeto com <kbd>Ctrl</kbd>+<kbd>S</kbd>. Da próxima vez, abra o arquivo .qgz e tudo volta como estava, com os dados atualizados do servidor.
+
+### 3.12 ArcGIS Pro
+
+No ArcGIS Pro, use **Inserir > Conexões > Servidor > Novo servidor WMS** (ou **Novo servidor WFS** / **Novo servidor WCS**) e informe as mesmas URLs, sem usuário e senha. As conexões aparecem no painel Catálogo, em Servidores, de onde as camadas são arrastadas para o mapa.
+
+### 3.13 Receitas de análise no QGIS
+
+As receitas abaixo pressupõem que você já fez os passos 3.5 a 3.8.
+
+#### Focos por UC e por ano
+
+1. Adicione **firms_clip** pelo WFS e, se quiser, filtre só os focos dentro das UCs ("tipo_cruzamento" = 'UC').
+2. Abra a **Caixa de Ferramentas de Processamento** (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>) e procure **Estatísticas por categorias**.
+3. Em **Camada de entrada**, escolha firms_clip. Em **Campos com categorias**, escolha **id_uc** e **nr_ano**. Clique em **Executar**.
+4. O resultado é uma tabela nova no painel Camadas, com a contagem por UC e ano. Abra-a com <kbd>F6</kbd>.
+
+#### Mapa de calor que pode ser salvo e medido
+
+O mapa de calor da seção 3.9 é só visual. Para um raster de densidade que pode ser analisado, use **Processamento > Caixa de Ferramentas > Mapa de calor (Estimativa de densidade Kernel)** sobre a camada reprojetada para SIRGAS 2000 / UTM 22S (EPSG:31982), para o raio ficar em metros.
 
 #### Colorir o MapBiomas baixado pelo WCS
 
-O WCS traz só os códigos das classes. Em **Propriedades &gt; Simbologia &gt; Estilo &gt; Carregar estilo**, aplique o estilo oficial ESTILO_QGIS_COL11_PT.qml do pacote da Coleção 11 do MapBiomas (o administrador do projeto fornece o arquivo). As cores e os nomes ficam iguais aos do WMS.
+O WCS traz só os códigos das classes. Em **Propriedades > Simbologia > Estilo > Carregar estilo**, aplique o estilo oficial ESTILO_QGIS_COL11_PT.qml do pacote da Coleção 11 do MapBiomas (o administrador do projeto fornece o arquivo). As cores e os nomes ficam iguais aos do WMS.
 
 #### Área por classe numa área desenhada por você
 
@@ -284,17 +756,29 @@ Para UCs e entornos, use a tabela mapbiomas_clip, que já traz a área calculada
 4. **Processamento &gt; Relatório de valores únicos da camada raster**: a tabela traz, para cada código de classe, a quantidade de pixels e a área em m² (divida por 10.000 para hectares).
 5. Traduza os códigos com a camada mapbiomas_legend_class (WFS).
 
-#### Focos por UC e por ano
-
-Carregue firms_clip e use **Processamento &gt; Estatísticas por categorias**, com os campos de categoria id_uc e nr_ano. O resultado é uma tabela com a contagem por UC e ano. Para separar dentro e entorno, filtre antes por tipo_cruzamento.
-
 #### Layout para relatório
 
-Em **Projeto &gt; Novo Layout de Impressão**, adicione o mapa, a legenda, a escala e o norte. Cite as fontes no rodapé do layout ([capítulo 13](#13-créditos-e-citação-das-fontes)).
+Em **Projeto &gt; Novo Layout de Impressão**, adicione o mapa, a legenda, a escala e o norte. Cite as fontes no rodapé do layout ([capítulo 13](#13-créditos-e-citação-das-fontes)). O passo a passo do layout está no [manual do QGIS, Layouts de impressão](https://docs.qgis.org/latest/pt_BR/docs/user_manual/print_composer/index.html).
+
+### 3.14 Para aprender mais sobre o QGIS
+
+| **Material** | **Para quem** |
+|----|----|
+| [Uma introdução gentil ao SIG](https://docs.qgis.org/latest/pt_BR/docs/gentle_gis_introduction/index.html) | quem nunca estudou geoprocessamento: conceitos explicados com calma, em português |
+| [Manual de treinamento do QGIS](https://docs.qgis.org/latest/pt_BR/docs/training_manual/index.html) | exercícios guiados, do básico ao avançado |
+| [Manual do usuário do QGIS](https://docs.qgis.org/latest/pt_BR/docs/user_manual/index.html) | referência completa de cada janela |
+| [Trabalhando com dados OGC no QGIS](https://docs.qgis.org/latest/pt_BR/docs/user_manual/working_with_ogc/ogc_client_support.html) | detalhes das conexões WMS, WFS e WCS usadas neste capítulo |
+| [Tabela de atributos](https://docs.qgis.org/latest/pt_BR/docs/user_manual/working_with_vector/attribute_table.html) | selecionar, filtrar e calcular colunas |
 
 ## 4. Excel
 
 O Excel lê as tabelas diretamente do serviço WFS em formato CSV, sem senha e sem instalar nada. Cada consulta vira uma tabela atualizável: basta clicar em **Atualizar Tudo** para trazer os dados mais recentes.
+
+> 📘 **Conceito:** o Excel não abre o "arquivo" do projeto: ele faz um **pedido** ao servidor por meio de uma URL e recebe uma tabela. Quem faz esse pedido é o **Power Query** (guia **Dados > Obter Dados**), a parte do Excel que importa e limpa dados de fontes externas e lembra o caminho para atualizar depois. Funciona no Excel do Microsoft 365 e nas versões 2016 em diante, no Windows.
+{.is-concept}
+
+> ℹ️ **Ordem recomendada para a primeira vez:** (1) configure o separador decimal ([seção 4.3](#43-antes-de-importar-separador-decimal)), (2) escolha uma URL pronta ([seção 4.2](#42-uma-url-pronta-para-cada-base)), (3) importe ([seção 4.4](#44-importando-no-excel)) e (4) monte a Tabela Dinâmica. Pular o passo 1 é a causa número um de números errados.
+{.is-info}
 
 ### 4.1 Montando a URL
 
@@ -321,6 +805,9 @@ https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wfs?service=WFS&vers
 | count | limita a quantidade de linhas | 1000 |
 
 Na URL, espaços viram %20, aspas simples viram %27 e o sinal de igual dentro do filtro vira %3D. Copie a URL inteira, numa linha só, sem espaços no meio.
+
+> 📘 **Conceito:** leia a URL como uma frase. Tudo depois do **?** são pedidos separados por **&**: "serviço WFS, versão 2.0.0, quero feições (GetFeature), da camada prodes_clip, em CSV, só estas colunas, só as linhas que passam neste filtro". Mudar um pedaço da URL muda a tabela que chega.
+{.is-concept}
 
 ### 4.2 Uma URL pronta para cada base
 
@@ -522,8 +1009,13 @@ https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wfs?service=WFS&vers
 > 💡 **Dica:** Para atualizar todas as consultas de uma vez, use **Dados > Atualizar Tudo**. As Tabelas Dinâmicas acompanham depois de **Atualizar** (botão direito sobre elas).
 {.is-success}
 
+**Para aprender mais:** [Criar uma Tabela Dinâmica](https://support.microsoft.com/pt-br/office/criar-uma-tabela-din%C3%A2mica-para-analisar-dados-da-planilha-a9a84538-bfe9-40a9-a8e9-f99134456576) (suporte da Microsoft) e [documentação do Power Query](https://learn.microsoft.com/pt-br/power-query/).
+
 
 ## 5. Power BI Desktop
+
+> 📘 **Conceito:** o **Power BI Desktop** é o programa gratuito da Microsoft para montar painéis interativos (gráficos, mapas e filtros que conversam entre si). Ele usa o mesmo Power Query do Excel para buscar os dados. Baixe pela [página oficial do Power BI Desktop](https://learn.microsoft.com/pt-br/power-bi/fundamentals/desktop-get-the-desktop) ou pela Microsoft Store, e veja o [guia de introdução](https://learn.microsoft.com/pt-br/power-bi/fundamentals/desktop-getting-started) se nunca usou.
+{.is-concept}
 
 O Power BI pode ser conectado de duas formas: direto no banco (recomendado para o grupo do laboratório, com o login do laboratório) ou pelo WFS em CSV, como no Excel, sem login.
 
@@ -548,6 +1040,9 @@ Confira o arquivo antes de instalar: validade de 25/05/2021 a 25/05/2061 e impre
 5. Em cada consulta com geometria, remova a coluna geom (botão direito &gt; Remover). **Fechar e Aplicar**.
 
 Também é possível colar uma das consultas do [capítulo 9](#9-consultas-prontas): na janela do passo 2, abra **Opções avançadas** e cole o SQL em **Instrução SQL**.
+
+> ✅ **Confira:** no Navegador do Power BI aparecem só as views que começam com **reporting.** Se aparecer erro de certificado, volte à [seção 5.1](#51-antes-da-primeira-conexão-ao-banco-certificado-da-aws). Detalhes do conector estão na [documentação do conector PostgreSQL](https://learn.microsoft.com/pt-br/power-query/connectors/postgresql).
+{.is-check}
 
 ### 5.3 Modelo de dados recomendado
 
@@ -589,6 +1084,9 @@ Use as medidas com segmentações de nm_uc, tipo_cruzamento (ou aoi_type) e da t
 
 ## 6. DBeaver e outros clientes SQL
 
+> 📘 **Conceito:** o **DBeaver** é um programa gratuito para conversar com bancos de dados: você escreve uma pergunta em SQL e ele mostra a resposta numa tabela. Baixe a versão **Community** em [dbeaver.io/download](https://dbeaver.io/download/) (instalador para Windows, opção *Windows installer*). O [manual do DBeaver](https://dbeaver.com/docs/dbeaver/) explica cada janela.
+{.is-concept}
+
 O DBeaver (versão Community, gratuita) é o caminho para consultas livres em SQL, inclusive espaciais com as funções do PostGIS. Os mesmos dados valem para qualquer cliente PostgreSQL (pgAdmin, DataGrip, psql, Python, R).
 
 1. **Banco de dados &gt; Nova conexão &gt; PostgreSQL &gt; Avançar**.
@@ -605,10 +1103,29 @@ O DBeaver (versão Community, gratuita) é o caminho para consultas livres em SQ
 {.is-success}
 
 
-Para conferir a conexão, rode:
+Para conferir a conexão, abra um editor SQL (botão direito na conexão > **Editor SQL > Novo script**, ou <kbd>Ctrl</kbd>+<kbd>]</kbd>), cole a linha abaixo e aperte <kbd>Ctrl</kbd>+<kbd>Enter</kbd>:
 
 ```sql
 SELECT current_user, count(*) AS ucs FROM reporting.uc;
+```
+
+> 📘 **Conceito: como ler uma consulta SQL.** Toda consulta é uma frase em inglês com partes fixas. Veja a mesma pergunta, "quantos focos dentro de cada UC por ano, desde 2020?":
+>
+> - `SELECT id_uc, nr_ano, count(*) AS focos`: **quais colunas** quero ver (aqui, a UC, o ano e a contagem)
+> - `FROM reporting.firms_clip`: **de qual tabela**
+> - `WHERE tipo_cruzamento = 'UC' AND nr_ano >= 2020`: **quais linhas** entram (o filtro)
+> - `GROUP BY id_uc, nr_ano`: **como agrupar** para contar
+> - `ORDER BY focos DESC`: **em que ordem** mostrar
+>
+> As 15 consultas do [capítulo 9](#9-consultas-prontas) seguem esse mesmo esqueleto, com mais colunas e junções. Para aprender SQL espacial com calma, veja o [workshop introdutório do PostGIS](https://postgis.net/workshops/postgis-intro/) (em inglês).
+{.is-concept}
+
+```sql
+SELECT id_uc, nr_ano, count(*) AS focos
+FROM reporting.firms_clip
+WHERE tipo_cruzamento = 'UC' AND nr_ano >= 2020
+GROUP BY id_uc, nr_ano
+ORDER BY focos DESC;
 ```
 
 ## 7. Problemas comuns
@@ -617,6 +1134,10 @@ SELECT current_user, count(*) AS ucs FROM reporting.uc;
 
 | **Sintoma** | **Causa provável** | **Solução** |
 |----|----|----|
+| QGIS: a camada foi adicionada mas o mapa continua vazio | o mapa está mostrando outra região do mundo | botão direito na camada > **Aproximar para camada(s)** |
+| QGIS: o mapa base não aparece (fundo branco) | sem internet ou com bloqueio de rede | confira a conexão; o mapa base e os serviços vêm da web |
+| QGIS: sumiu o painel Camadas ou o Navegador | o painel foi fechado | **Exibir > Painéis** e marque o painel de novo |
+| QGIS: a camada some ao aproximar ou afastar | caixinha desmarcada ou filtro ativo | marque a caixinha da camada e confira se há um ícone de funil (filtro) ao lado dela |
 | QGIS: "O servidor requer autenticação" (HTTP 401) no WMS, WFS ou WCS | usuário e senha preenchidos na conexão de mapa | apague usuário e senha; os serviços de mapa são abertos |
 | QGIS: erro 404 ao conectar | URL terminando em /protected_areas_sc/, sem o serviço | use a URL com /wms, /wfs, /wcs ou /gwc/service/wmts |
 | Excel ou Power BI: números milhares de vezes maiores (618.0669 virou 6180669) | o ponto decimal do CSV foi lido como separador de milhar | configure a localidade Inglês (Estados Unidos) antes de importar ([seções 4.3](#43-antes-de-importar-separador-decimal) e 5.4) e refaça a consulta |
@@ -1196,34 +1717,50 @@ LIMIT 20;
 
 ## 10. Acesso por Python
 
-Analistas que usam Python podem ler as mesmas bases sem o Excel. Instale geopandas (que traz pandas) com pip install geopandas ou pelo conda.
+> 📘 **Conceito:** **pandas** é a biblioteca do Python para tabelas (como um Excel programável) e **geopandas** acrescenta a geometria, para trabalhar com mapas. A vantagem sobre o Excel é a reprodutibilidade: o mesmo script refaz a análise inteira quando os dados forem atualizados. Comece pelos guias oficiais do [pandas](https://pandas.pydata.org/docs/getting_started/index.html) e do [geopandas](https://geopandas.org/en/stable/getting_started/introduction.html).
+{.is-concept}
+
+Analistas que usam Python podem ler as mesmas bases sem o Excel. Instale geopandas (que traz pandas) com `pip install geopandas` ou pelo conda.
 
 ### 10.1 Pelo WFS, sem login
 
 ```python
 import geopandas as gpd
 import pandas as pd
+
 WFS = "https://areasprotegidas-sc.com/geoserver/protected_areas_sc/wfs"
 BASE = WFS + "?service=WFS&version=2.0.0&request=GetFeature"
-## Tabela (CSV): área por classe MapBiomas
-mb = pd.read_csv(BASE + "&typeNames=protected_areas_sc:mapbiomas_clip&outputFormat=csv"
-"&propertyName=id_uc,aoi_type,nr_ano,class_name_pt_br,class_area_ha")
+
+# Tabela (CSV): área por classe MapBiomas
+mb = pd.read_csv(
+    BASE + "&typeNames=protected_areas_sc:mapbiomas_clip&outputFormat=csv"
+    "&propertyName=id_uc,aoi_type,nr_ano,class_name_pt_br,class_area_ha"
+)
 print(mb.head())
-## Feições com geometria (GeoJSON): UCs
+
+# Feições com geometria (GeoJSON): UCs
 ucs = gpd.read_file(BASE + "&typeNames=protected_areas_sc:uc&outputFormat=application/json")
 print(ucs.crs, len(ucs))
-## Área calculada em projeção métrica (SIRGAS 2000 / UTM 22S)
+
+# Área calculada em projeção métrica (SIRGAS 2000 / UTM 22S)
 ucs["area_calc_ha"] = ucs.to_crs(31982).area / 10_000
 print(ucs[["nm_uc", "area_total_ha", "area_calc_ha"]].head())
-## Floresta (grupo 1 da legenda) por UC e ano, dentro da UC
-leg = pd.read_csv(BASE + "&typeNames=protected_areas_sc:mapbiomas_legend_class&outputFormat=csv"
-"&propertyName=class_code,parent_class_code")
-mb2 = pd.read_csv(BASE + "&typeNames=protected_areas_sc:mapbiomas_clip&outputFormat=csv"
-"&propertyName=id_uc,aoi_type,nr_ano,class_code,class_area_ha")
-floresta = (mb2.merge(leg, on="class_code")
-.query("aoi_type == 'UC' and parent_class_code == 1")
-.groupby(["id_uc", "nr_ano"])["class_area_ha"].sum()
-.unstack("nr_ano"))
+
+# Floresta (grupo 1 da legenda) por UC e ano, dentro da UC
+leg = pd.read_csv(
+    BASE + "&typeNames=protected_areas_sc:mapbiomas_legend_class&outputFormat=csv"
+    "&propertyName=class_code,parent_class_code"
+)
+mb2 = pd.read_csv(
+    BASE + "&typeNames=protected_areas_sc:mapbiomas_clip&outputFormat=csv"
+    "&propertyName=id_uc,aoi_type,nr_ano,class_code,class_area_ha"
+)
+floresta = (
+    mb2.merge(leg, on="class_code")
+    .query("aoi_type == 'UC' and parent_class_code == 1")
+    .groupby(["id_uc", "nr_ano"])["class_area_ha"].sum()
+    .unstack("nr_ano")
+)
 print(floresta.round(1).head())
 ```
 
@@ -1234,20 +1771,23 @@ Com o login do laboratório ou do evento, instale também sqlalchemy e psycopg2-
 
 ```python
 import os
+
 import geopandas as gpd
 import pandas as pd
 import sqlalchemy
+
 usuario = os.environ["PA_SC_USUARIO"]
 senha = os.environ["PA_SC_SENHA"]
 servidor = os.environ["PA_SC_SERVIDOR"]  # host:porta/banco, entregue pelo administrador
+
 engine = sqlalchemy.create_engine(
-f"postgresql+psycopg2://{usuario}:{senha}@{servidor}?sslmode=require"
+    f"postgresql+psycopg2://{usuario}:{senha}@{servidor}?sslmode=require"
 )
 ucs = gpd.read_postgis("SELECT id_uc, nm_uc, geom FROM reporting.uc", engine, geom_col="geom")
 focos = pd.read_sql(
-"SELECT nr_ano, source_product, count(DISTINCT detection_id) AS focos "
-"FROM reporting.firms_clip GROUP BY 1, 2 ORDER BY 1, 2",
-engine,
+    "SELECT nr_ano, source_product, count(DISTINCT detection_id) AS focos "
+    "FROM reporting.firms_clip GROUP BY 1, 2 ORDER BY 1, 2",
+    engine,
 )
 ```
 
@@ -1347,6 +1887,25 @@ Sugestão de citação do projeto: **Áreas Protegidas SC. Dados de monitorament
 
 ---
 
+## Para aprender mais
+
+Uma seleção curta de materiais confiáveis e gratuitos, do mais básico ao mais técnico. Todos foram conferidos em novembro de 2026.
+
+| **Tema** | **Material** | **Nível** |
+|----|----|----|
+| Geoprocessamento do zero | [Uma introdução gentil ao SIG](https://docs.qgis.org/latest/pt_BR/docs/gentle_gis_introduction/index.html) (QGIS, em português) | iniciante |
+| QGIS passo a passo | [Manual de treinamento do QGIS](https://docs.qgis.org/latest/pt_BR/docs/training_manual/index.html) | iniciante a intermediário |
+| Sistemas de coordenadas | [Sistemas de referência de coordenadas](https://docs.qgis.org/latest/pt_BR/docs/gentle_gis_introduction/coordinate_reference_systems.html) e os registros [EPSG:4674](https://epsg.io/4674) e [EPSG:31982](https://epsg.io/31982) | iniciante |
+| Unidades de Conservação | [Lei nº 9.985/2000 (SNUC)](https://www.planalto.gov.br/ccivil_03/leis/l9985.htm) e [Painel do CNUC](https://www.gov.br/mma/pt-br/assuntos/biodiversidade-e-biomas/areas-protegidas/plataforma-cnuc-1) | iniciante |
+| MapBiomas | [Códigos e cores da legenda](https://brasil.mapbiomas.org/codigos-de-legenda/) e [Plataforma MapBiomas](https://plataforma.brasil.mapbiomas.org/) para comparar com os dados oficiais | iniciante |
+| Focos de calor | [Perguntas frequentes do NASA FIRMS](https://www.earthdata.nasa.gov/data/tools/firms/faq) e o [mapa interativo do FIRMS](https://firms.modaps.eosdis.nasa.gov/map/) (em inglês) | intermediário |
+| Desmatamento | [PRODES, INPE](http://www.obt.inpe.br/OBT/assuntos/programas/amazonia/prodes) e o [mapa do TerraBrasilis](https://terrabrasilis.dpi.inpe.br/app/map/deforestation) | intermediário |
+| Excel e Power BI | [Documentação do Power Query](https://learn.microsoft.com/pt-br/power-query/) e [Introdução ao Power BI Desktop](https://learn.microsoft.com/pt-br/power-bi/fundamentals/desktop-getting-started) | iniciante a intermediário |
+| SQL espacial | [Workshop introdutório do PostGIS](https://postgis.net/workshops/postgis-intro/) (em inglês) | intermediário |
+| Python | [Primeiros passos com pandas](https://pandas.pydata.org/docs/getting_started/index.html) e [com geopandas](https://geopandas.org/en/stable/getting_started/introduction.html) (em inglês) | intermediário |
+
+---
+
 ## Referências
 
 **Fontes dos dados**
@@ -1357,12 +1916,20 @@ Sugestão de citação do projeto: **Áreas Protegidas SC. Dados de monitorament
 - [NASA FIRMS, focos de calor MODIS e VIIRS](https://firms.modaps.eosdis.nasa.gov)
 - [CNUC, Cadastro Nacional de Unidades de Conservação (MMA)](https://www.gov.br/mma/pt-br/assuntos/biodiversidade-e-biomas/areas-protegidas/plataforma-cnuc-1)
 - [IBGE, Malha Territorial](https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/15774-malhas.html)
+- [Protected Planet, World Database on Protected Areas (WDPA)](https://www.protectedplanet.net/en)
+- [MapBiomas, códigos de legenda da Coleção 11](https://brasil.mapbiomas.org/codigos-de-legenda/)
+- [NASA FIRMS, perguntas frequentes](https://www.earthdata.nasa.gov/data/tools/firms/faq)
+- [Brasil, Lei nº 9.985/2000, Sistema Nacional de Unidades de Conservação](https://www.planalto.gov.br/ccivil_03/leis/l9985.htm)
 
 **Padrões e ferramentas**
 
 - [OGC, padrões WMS, WMTS, WFS e WCS](https://www.ogc.org/standards/)
-- [Documentação do GeoServer](https://docs.geoserver.org)
+- [Documentação do GeoServer](https://docs.geoserver.org), serviços [WMS](https://docs.geoserver.org/stable/en/user/services/wms/index.html) e [WFS](https://docs.geoserver.org/stable/en/user/services/wfs/index.html)
+- [QGIS, download oficial](https://qgis.org/download/)
 - [QGIS, manual do usuário](https://docs.qgis.org/latest/pt_BR/docs/user_manual/)
+- [QGIS, introdução gentil ao SIG](https://docs.qgis.org/latest/pt_BR/docs/gentle_gis_introduction/index.html)
+- [DBeaver Community, download](https://dbeaver.io/download/)
+- [Power BI Desktop, download](https://learn.microsoft.com/pt-br/power-bi/fundamentals/desktop-get-the-desktop)
 - [PostGIS, referência das funções](https://postgis.net/docs/)
 
 **Código do projeto (licença MIT)**
