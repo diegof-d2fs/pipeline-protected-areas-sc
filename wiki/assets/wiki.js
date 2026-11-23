@@ -31,7 +31,19 @@
   });
   media.addEventListener("change", () => { if (!root.dataset.theme) renderDiagrams(); });
   themeButton.textContent = labels[root.dataset.theme || "auto"];
+
+  // O diagrama é desenhado depois da abertura e muda a altura da página. Ao abrir um link com
+  // âncora (#secao), a página é realinhada na seção certa depois do desenho e do carregamento.
+  let userScrolled = false;
+  ["wheel", "touchmove", "keydown"].forEach((ev) => window.addEventListener(ev, () => { userScrolled = true; }, { once: true, passive: true }));
+  const realign = () => {
+    if (userScrolled || !location.hash) return;
+    const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (target) target.scrollIntoView({ block: "start", behavior: "instant" });
+  };
   renderDiagrams();
+  pending.then(realign);
+  window.addEventListener("load", realign);
 
   document.querySelectorAll("pre > code").forEach((code) => {
     if (window.hljs && !code.classList.contains("language-text")) hljs.highlightElement(code);
@@ -79,16 +91,36 @@
     while (li) { li.classList.add("open"); li = li.parentElement.closest("li"); }
     current = link;
   };
+  // Um título conta como "atual" quando chega à faixa logo abaixo da barra superior. A margem
+  // (140 px) precisa ser maior que o deslocamento de rolagem do CSS (scroll-padding-top), senão
+  // o sumário destaca a seção anterior à clicada.
+  const ACTIVE_LINE = 140;
+  let lockedUntil = 0;
   const onScroll = () => {
+    document.querySelector(".to-top").classList.toggle("show", window.scrollY > 600);
+    if (Date.now() < lockedUntil) return;
     let id = headings.length ? headings[0].id : null;
     for (const h of headings) {
-      if (h.getBoundingClientRect().top - 90 <= 0) id = h.id; else break;
+      if (h.getBoundingClientRect().top - ACTIVE_LINE <= 0) id = h.id; else break;
     }
     if (id) activate(id);
-    document.querySelector(".to-top").classList.toggle("show", window.scrollY > 600);
   };
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
+  // Ao clicar em qualquer link interno, o item correspondente do sumário é destacado na hora e
+  // fica fixo enquanto a rolagem suave passa pelas seções intermediárias.
+  document.addEventListener("click", (event) => {
+    const a = event.target.closest('a[href^="#"]');
+    if (!a) return;
+    const id = decodeURIComponent(a.getAttribute("href").slice(1));
+    if (!links.has(id)) return;
+    lockedUntil = Date.now() + 1200;
+    activate(id);
+  });
+  window.addEventListener("hashchange", () => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (links.has(id)) { lockedUntil = Date.now() + 1200; activate(id); }
+  });
 
   document.querySelector(".to-top").addEventListener("click", () => window.scrollTo({ top: 0 }));
 

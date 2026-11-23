@@ -41,6 +41,28 @@ def explicit_callouts(text: str) -> str:
     return CALLOUT_BLOCK.sub(repl, text)
 
 
+def image_size(path: Path) -> tuple[int, int] | None:
+    """Lê largura e altura do cabeçalho PNG ou JPEG, sem depender de bibliotecas de imagem."""
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    if data[:2] == b"\xff\xd8":
+        i = 2
+        while i < len(data) - 9:
+            if data[i] != 0xFF:
+                i += 1
+                continue
+            marker = data[i + 1]
+            length = int.from_bytes(data[i + 2:i + 4], "big")
+            if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+                return int.from_bytes(data[i + 7:i + 9], "big"), int.from_bytes(data[i + 5:i + 7], "big")
+            i += 2 + length
+    return None
+
+
 def render_markdown(text: str) -> tuple[str, list[dict]]:
     text = explicit_callouts(text)
     md = markdown.Markdown(
@@ -68,6 +90,12 @@ def postprocess(body: str) -> tuple[str, str]:
     for img in soup.find_all("img"):
         img["loading"] = "lazy"
         img["tabindex"] = "0"
+        # Largura e altura reais reservam o espaço da imagem antes do download. Sem isso, as
+        # imagens carregadas durante a rolagem empurram o texto e os links do sumário param
+        # na seção errada.
+        size = image_size(ROOT / img["src"])
+        if size:
+            img["width"], img["height"] = str(size[0]), str(size[1])
         if not img.get("alt"):
             caption = img.find_parent("p").find_next_sibling("p") if img.find_parent("p") else None
             img["alt"] = caption.get_text(strip=True) if caption and caption.find("em") else "Captura de tela"

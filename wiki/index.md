@@ -58,6 +58,17 @@ Este guia foi escrito para servir tanto a quem **nunca abriu um programa de mapa
 <li><a href="#10-acesso-por-python">Python</a></li>
 </ol>
 </div>
+<div class="card c-orange">
+<span class="card-emoji">🔎</span>
+<strong>Quero ideias de pesquisa</strong>
+<span class="time">cerca de 20 minutos</span>
+<ol>
+<li><a href="#estudos-de-caso-cinco-ucs-notícias-artigos-e-dados">5 UCs cruzadas com notícias e artigos</a></li>
+<li><a href="#cinco-sugestões-de-artigos-com-os-dados-do-projeto">5 sugestões de artigos</a></li>
+<li><a href="#pesquisa-com-aprendizado-de-máquina-e-ia-generativa">IA, agentes e deep learning</a></li>
+<li><a href="#9-consultas-prontas">Consultas para reproduzir</a></li>
+</ol>
+</div>
 </div>
 
 > 💡 **Dica para quem está começando:** faça **um passo de cada vez** e só passe para o próximo quando a tela estiver igual à imagem do guia. Se algo sair diferente, procure o sintoma no capítulo [7. Problemas comuns](#7-problemas-comuns). Clique em qualquer imagem para vê-la em tela cheia, e use **Esc** ou o **✕** para voltar.
@@ -92,6 +103,9 @@ As caixas coloridas seguem sempre o mesmo código, para você saber de longe o q
 - [7. Problemas comuns](#7-problemas-comuns)
 - [8. Dicionário de dados](#8-dicionário-de-dados)
 - [9. Consultas prontas](#9-consultas-prontas)
+- [Estudos de caso: cinco UCs, notícias, artigos e dados](#estudos-de-caso-cinco-ucs-notícias-artigos-e-dados)
+- [Cinco sugestões de artigos com os dados do projeto](#cinco-sugestões-de-artigos-com-os-dados-do-projeto)
+- [Pesquisa com aprendizado de máquina e IA generativa](#pesquisa-com-aprendizado-de-máquina-e-ia-generativa)
 - [10. Acesso por Python](#10-acesso-por-python)
 - [11. Oficinas: modo eventos](#11-oficinas-modo-eventos)
 - [12. Cobertura e limitações dos dados](#12-cobertura-e-limitações-dos-dados)
@@ -1714,6 +1728,410 @@ ORDER BY distancia_limite_m
 LIMIT 20;
 ```
 
+
+## Estudos de caso: cinco UCs, notícias, artigos e dados
+
+Este capítulo mostra **para que servem os dados na prática**. Em cada um dos cinco estudos de caso, um problema noticiado pela imprensa, pelo Ministério Público ou pela Justiça foi confrontado com as tabelas do projeto: área por classe do MapBiomas, PRODES, MapBiomas Alerta e FIRMS. Cada caso traz os números, um mapa de antes e depois (os anos foram escolhidos em torno de cada evento, e não sempre 1985 e 2025), as notícias e os artigos e trabalhos acadêmicos com **PDF gratuito** sobre a UC, com a explicação de como cada um se liga aos dados. Em seguida vêm [cinco sugestões de artigos](#cinco-sugestões-de-artigos-com-os-dados-do-projeto) e [propostas de pesquisa com IA](#pesquisa-com-aprendizado-de-máquina-e-ia-generativa).
+
+> ℹ️ **Leitura de 02/11/2026, com as 186 UCs cadastradas até essa data.** Todos os números podem ser refeitos com as consultas do [capítulo 9](#9-consultas-prontas), pelo QGIS ou pelo Excel.
+{.is-info}
+
+> ⚠️ **Atenção:** os dados **descrevem** o que aconteceu. Eles não provam sozinhos a causa de uma mudança nem constatam uma infração. Alerta não é auto de infração, foco de calor não é área queimada e coincidência no tempo não é prova de efeito. Use os casos como ponto de partida para investigar, sempre com as fontes originais e com quem conhece o território.
+{.is-warning}
+
+### Por que o pipeline torna estes casos possíveis
+
+Sem o pipeline, cada caso exigiria baixar 41 mapas anuais do MapBiomas, a série do PRODES, a API do MapBiomas Alerta e os arquivos do FIRMS, reprojetar tudo, recortar cada fonte pela UC e por um entorno de 3 km desenhado à mão e só então começar a análise. Com os dados já preparados, os números de cada estudo de caso saem de uma consulta ao WFS ou ao banco, e os mapas de antes e depois saem de um pedido ao WMS. A tabela mostra qual capacidade do pipeline sustenta cada parte deste capítulo.
+
+| **O que o pipeline já entrega** | **Onde é usado** |
+|----|----|
+| As quatro fontes recortadas pelas mesmas 186 UCs e pelos mesmos entornos, com a coluna `tipo_cruzamento` | todos os estudos de caso, sugestões 1, 2, 4 e 5 |
+| Entorno padronizado: ZA oficial quando existe, Buffer de 3.000 m quando não existe | a comparação dentro × entorno em todos os casos |
+| Área por classe do MapBiomas, por UC e por ano, de 1985 a 2025 (`mapbiomas_clip`), conferida com o cálculo oficial | as tabelas dos cinco estudos de caso, sugestões 3 e 5, propostas 3 e 5 |
+| Rasters anuais publicados como COG, com estilo oficial no WMS e o código da classe no WCS | os mapas de antes e depois, propostas 3, 4 e 5 |
+| Geometrias versionadas e manifestos imutáveis na Bronze | a leitura dos limites após a recategorização do Tabuleiro, a reprodutibilidade exigida pelas propostas 2 e 3 |
+| Views somente leitura (`reporting`), com tempo máximo por consulta e dicionário de dados | os agentes de IA das propostas 1 e 2, que consultam sem risco de alterar dados |
+| Cargas semanais orquestradas pelo Airflow e catálogo dos rasters com SHA-256 | relatórios disparados ao fim de cada carga (proposta 2), conjuntos de treino idênticos para quem reproduzir (propostas 3, 4 e 5) |
+
+### Estudo de caso 1. Parque Nacional das Araucárias: pinus no entorno e regularização pendente
+
+**O contexto.** O parque foi criado em outubro de 2005, com 12.841 ha em Passos Maia e Ponte Serrada, para proteger remanescentes da Floresta Ombrófila Mista. Em 2011, a ((o))eco relatou que a maior parte das propriedades dentro do parque era de **empresas de reflorestamento e grandes fazendas**, com 20 processos de indenização e nenhuma área indenizada até então. Enquanto não são indenizados, os proprietários podem manter suas atividades. Em 2016, o TRF4 determinou que a União concluísse a desapropriação de dois terrenos de empresas florestais dentro do parque.
+
+**O que os dados mostram.**
+
+| **Indicador** | **2004 ou 1985** | **2025** | **Leitura** |
+|----|----:|----:|----|
+| Vegetação nativa dentro do parque | 88,0% (1985) | 88,6% | estável: o interior manteve a floresta |
+| Desmatamento PRODES dentro | 280 ha em 2004 | zero desde 2020 | caiu depois da criação (409 ha até 2006 e 182 ha depois) |
+| Silvicultura **dentro** do parque | 301 ha (1985) | 855 ha | cresceu mesmo após 2005, coerente com áreas ainda não desapropriadas |
+| Vegetação nativa no entorno | 55,3% (1985) | 38,3% | perda contínua: 41,4% já em 2005 |
+| Silvicultura no entorno | 6,7% (1985) | 29,4% | 2.314 ha para 10.152 ha |
+| Soja no entorno | 68 ha (1985) | 2.233 ha | nova frente de conversão |
+| Focos de calor (relações) | 274 | | 248 no entorno e 26 dentro, com pico em 2002 a 2004 |
+
+![](img/caso-araucarias-mapbiomas.png)
+
+*Mapa. Uso e cobertura da terra em 2004 (véspera da criação) e em 2025, com o limite do parque e o Buffer de 3.000 m. A silvicultura (marrom) avança sobre o entorno, enquanto o interior continua florestado.*
+
+> ✅ **Corroboração:** as notícias falam de pinus avançando sobre a floresta e de áreas privadas ainda em uso dentro do parque. Os dados mostram as duas coisas: o entorno trocou floresta e pastagem por silvicultura e soja, e a silvicultura dentro do limite triplicou mesmo depois da criação. O desmatamento PRODES dentro do parque, por outro lado, praticamente zerou, o que indica que a criação conteve o corte raso no interior.
+{.is-check}
+
+**Notícias.**
+
+- [Araucárias e fazendeiros pedem pressa](https://oeco.org.br/reportagens/24851-araucarias-e-fazendeiros-pedem-pressa/), ((o))eco, 01/03/2011.
+- [O invasor e seus comparsas](https://oeco.org.br/reportagens/1483-oeco_15483/), ((o))eco, sobre o pinus substituindo a mata nativa no Sul.
+- [TRF4: União deve concluir regularização do Parque Nacional das Araucárias](https://www.irib.org.br/trf4-uniao-deve-concluir-regularizacao-do-parque-nacional-das-araucarias-em-sc/), IRIB, 26/02/2016.
+- [Empresa desapropriada para a criação do Parque Nacional das Araucárias será indenizada](https://www.lex.com.br/empresa-que-foi-desapropriada-para-a-criacao-do-parque-nacional-das-araucarias-sc-sera-indenizada/), Lex, 05/09/2022.
+
+**Artigos e trabalhos acadêmicos (PDF gratuito).**
+
+- NODARI, E. S. [Unidades de Conservação de Proteção Integral: solução para a preservação? Floresta com Araucárias em Santa Catarina](https://periodicos.ufsc.br/index.php/esbocos/article/download/2175-7976.2011v18n25p96/21534/78435). *Revista Esboços*, v. 18, n. 25, p. 96-117, 2011. DOI: [10.5007/2175-7976.2011v18n25p96](https://doi.org/10.5007/2175-7976.2011v18n25p96).
+  **Por que está aqui:** reconstrói o desmatamento da Floresta com Araucárias no Oeste catarinense e a criação, em 2005, do PARNA das Araucárias e da ESEC da Mata Preta. Conclui que a devastação ocorreu apesar da legislação, por falta de controle e por interesses econômicos, e pergunta se as UCs de Proteção Integral são solução. **Ligação com os dados:** a série MapBiomas de 1985 a 2025 responde à pergunta do título com números posteriores a 2005: o interior do parque manteve 88% de vegetação nativa, e o entorno caiu de 55% para 38%.
+- BRUNETTO, S. [Floresta com Araucárias: as serrarias e ações de preservação em Passos Maia e Ponte Serrada (SC)](https://rd.uffs.edu.br/bitstream/prefix/8599/1/BRUNETTO.pdf). Dissertação (Mestrado em História), UFFS, 2025.
+  **Por que está aqui:** estuda as serrarias da região de 1940 a 1990 e a implantação do parque. Mostra que, a partir dos anos 1990, a araucária foi substituída pelo pinus e as áreas desmatadas passaram à agricultura, e conclui que as UCs preservam os remanescentes porque as áreas fora delas continuam sendo desmatadas. **Ligação com os dados:** é exatamente o padrão que a tabela `mapbiomas_clip` quantifica no Buffer: silvicultura de 6,7% para 29,4% e soja de 68 ha para 2.233 ha, enquanto o interior se mantém.
+
+**Pesquisa que os dados permitem.** Medir, ano a ano, a conversão para silvicultura nas propriedades ainda não indenizadas, cruzando a malha fundiária do ICMBio com a tabela `mapbiomas_clip` e o raster pelo WCS. É um complemento quantitativo direto aos trabalhos históricos de Nodari e Brunetto.
+
+
+### Estudo de caso 2. Estação Ecológica da Mata Preta: soja até a borda e regularização cobrada na Justiça
+
+**O contexto.** A ESEC da Mata Preta foi criada pelo mesmo decreto de 19 de outubro de 2005 que criou o PARNA das Araucárias, em Abelardo Luz, para proteger remanescentes da Floresta Ombrófila Mista. Em 29/10/2025, o MPF informou que a Justiça determinou a **regularização fundiária e a elaboração do plano de manejo** da unidade, vinte anos depois da criação. A ação resultou de inspeções feitas em 2023 na ESEC e no PARNA das Araucárias, que apontaram resistência de proprietários desde o processo de criação das duas unidades.
+
+**O que os dados mostram.**
+
+| **Indicador** | **1985** | **2005 (criação)** | **2025** | **Leitura** |
+|----|----:|----:|----:|----|
+| Vegetação nativa dentro da ESEC | 90,5% | 90,4% | 91,4% | o interior se manteve |
+| Soja **dentro** da ESEC | 1 ha | 62 ha | 168 ha | lavoura dentro de uma unidade de Proteção Integral |
+| Vegetação nativa no entorno | 31,4% | 23,6% | 23,4% | a perda ocorreu quase toda antes da criação |
+| Soja no entorno | 667 ha | 6.706 ha | 9.594 ha | a soja substituiu pastagem e outras lavouras |
+| Pastagem no entorno | 6.085 ha | 1.946 ha | 643 ha | conversão de pastagem em lavoura |
+| Desmatamento PRODES dentro | 119 ha (2004 a 2006) | | 13 ha (2008 a 2023) | o corte raso no interior quase parou |
+| MapBiomas Alerta | | | 7 no entorno e 1 dentro | de 2020 a 2025, o de dentro em 2022 (0,7 ha) |
+
+![](img/caso-matapreta-mapbiomas.png)
+
+*Mapa. Uso e cobertura da terra em 1995 e 2025, com o limite da ESEC e o Buffer de 3.000 m. Em 2025, a soja (rosa claro) chega até a borda da floresta protegida. A faixa clara ao norte fica no Paraná, fora do recorte estadual.*
+
+> ✅ **Corroboração:** a ação do MPF fala em regularização fundiária pendente e em resistência dos proprietários. Os dados mostram, dentro de uma unidade onde a lei não admite uso agrícola, 168 ha de soja e um alerta de desmatamento em 2022. No entorno, a ESEC virou uma ilha de floresta cercada de lavoura: a vegetação nativa já era só 23,6% quando a unidade foi criada.
+{.is-check}
+
+**Notícia.**
+
+- [Em ação do MPF, Justiça determina regularização fundiária e elaboração do plano de manejo da Esec da Mata Preta em Abelardo Luz (SC)](https://www.mpf.mp.br/o-mpf/unidades/pr-sc/noticias/em-acao-do-mpf-justica-determina-regularizacao-fundiaria-e-elaboracao-do-plano-de-manejo-da-esec-da-mata-preta-em-abelardo-luz-sc), MPF, 29/10/2025.
+
+**Artigos e trabalhos acadêmicos (PDF gratuito).**
+
+- NODARI, E. S.; CARVALHO, M. M. X.; MORETTO, S. P. [A conservação do Oeste catarinense: o Parque Nacional das Araucárias e a Estação Ecológica da Mata Preta](https://anpuh.org.br/uploads/anais-simposios/pdf/2019-01/1548772192_cd2ea14ab888f6978644e8481bbf9b8c.pdf). In: Simpósio Nacional de História, 25., Fortaleza: ANPUH, 2009.
+  **Por que está aqui:** reconstrói a devastação da Floresta com Araucárias no planalto catarinense ao longo do século XX, que abriu espaço à agricultura, e o processo que levou à criação das duas unidades em 2005. **Ligação com os dados:** o MapBiomas mostra a etapa seguinte dessa história, de 1985 a 2025: o entorno da ESEC trocou pastagem e lavouras diversas por soja, e a unidade ficou isolada numa matriz agrícola.
+- NODARI (2011), citada no estudo de caso 1, trata da mesma ESEC e da pergunta sobre a efetividade das UCs de Proteção Integral.
+
+**Pesquisa que os dados permitem.** Medir o **isolamento da ESEC** de 1985 a 2025 com métricas de paisagem (área de borda, distância entre fragmentos, conectividade) calculadas sobre o raster anual pelo WCS, e testar se a criação em 2005 mudou a tendência no entorno. É uma pergunta de ecologia da paisagem que só a série de 41 anos permite responder.
+
+
+### Estudo de caso 3. Parque Nacional de São Joaquim: incêndios nos campos de altitude
+
+**O contexto.** Em julho de 2026, o parque fez pela primeira vez ações de manejo integrado do fogo. Segundo a chefia, citada pelo Brasil de Fato, **desde 2020 o parque é alvo de incêndios criminosos** que atingiram centenas de hectares de campos e florestas. Trabalhos da UDESC lembram que pouco mais de 25% da área do parque tem a regularização fundiária efetivada, e que nas áreas não indenizadas ainda há atividades agropecuárias com uso recorrente do fogo para renovar pastagens.
+
+**O que os dados mostram.**
+
+| **Indicador** | **Valor** | **Leitura** |
+|----|----:|----|
+| Focos dentro do parque, 2002 a 2026 | 128 focos | 87 deles (68%) em agosto |
+| Focos dentro em 2020 | 23 | maior valor anual da série, no ano em que começam os incêndios relatados |
+| Focos dentro em 2024 e 2025 | 18 e 13 | o problema continua |
+| Formação Campestre dentro | 13.197 ha (1985) e 12.890 ha (2025) | os campos de altitude seguem ocupando um quarto do parque |
+| Silvicultura dentro | 24 ha (1985) e 775 ha (2025) | plantios dentro do limite, em áreas privadas |
+| Pastagem dentro | 1.516 ha (1985) e 973 ha (2025) | uso agropecuário ainda presente |
+
+![](img/caso-saojoaquim-mapbiomas-focos.png)
+
+*Mapa. Uso e cobertura em 2019 (antes dos incêndios relatados) e em 2025, com os focos de calor de 2020 a 2025 em vermelho. Os focos se concentram nos campos de altitude da porção oeste do parque.*
+
+> ✅ **Corroboração:** o aumento de focos a partir de 2020 e a concentração em agosto, no inverno seco do planalto, batem com o relato de incêndios recorrentes e com a prática do fogo para renovar pastagens. O mapa mostra que os focos caem sobre os campos, e não sobre a floresta. Os trabalhos da UDESC abaixo confirmam, com outra fonte, que as queimadas se concentram nas áreas ainda não indenizadas, as mesmas onde o MapBiomas mostra silvicultura e pastagem dentro do parque.
+{.is-check}
+
+> ⚠️ **O que os artigos ensinam sobre os nossos dados:** em 2022, a UDESC mapeou com imagens PlanetScope (3 m) **1.084 cicatrizes de queimada, somando 7.839 ha**, no parque e no entorno, e verificou que **menos de 1%** delas coincidia com os focos do BDQueimadas/INPE, que usa satélites térmicos semelhantes aos do FIRMS. As queimadas nos campos têm em média de 1 a 13 ha, abaixo do que esses sensores enxergam. Por isso, os focos do FIRMS são um **indicador de tendência e de temporada**, e não uma medida de área queimada: nos campos de altitude, eles subestimam muito o fogo. Em 2022, por exemplo, o FIRMS registrou só 4 focos dentro do parque.
+{.is-warning}
+
+**Notícia.**
+
+- [Parque Nacional de São Joaquim usa fogo controlado para prevenir grandes incêndios](https://www.brasildefato.com.br/2026/07/21/parque-nacional-de-sao-joaquim-usa-fogo-controlado-para-prevenir-grandes-incendios/), Brasil de Fato, 21/07/2026.
+
+**Artigos e trabalhos acadêmicos (PDF gratuito).**
+
+- SILVA, K. A. C.; LIESENBERG, V.; AMBRÓSIO, M. O. A. [Efetividade da regularização fundiária na ocorrência de queimadas no Parque Nacional de São Joaquim](https://www.udesc.br/arquivos/udesc/id_cpmenu/16921/EFETIVIDADE_DA_REGULARIZA__O_FUNDI_RIA_NA_OCORR_NCIA_16947167091485_16921.pdf). UDESC, resumo de iniciação científica (dados de 2022).
+  **Por que está aqui:** das 525 cicatrizes dentro do parque, 78,6% estavam em áreas **não regularizadas**, e mais de 60% começaram nelas e avançaram sobre as regularizadas. Pouco mais de 25% do parque tem a regularização efetivada. **Ligação com os dados:** explica a silvicultura (775 ha) e a pastagem (973 ha) que o MapBiomas ainda registra dentro do limite e sugere cruzar os focos com a malha fundiária do ICMBio.
+- MENDES, E.; LIESENBERG, V.; VINCIGUERA, V. R. [Aplicabilidade do BD Queimadas/INPE no mapeamento de queimadas em campos de altitude no sul do Brasil](https://www.udesc.br/arquivos/udesc/id_cpmenu/16921/APLICABILIDADE_DO_BD_QUEIMADAS_INPE_NO_MAPEAMENTO_1694716522964_16921.pdf). UDESC, resumo de iniciação científica (dados de 2022).
+  **Por que está aqui:** compara as cicatrizes mapeadas em imagens de 3 m com os focos de satélites térmicos e mostra que menos de 1% coincidem. **Ligação com os dados:** é a evidência de que os focos do FIRMS, publicados pelo projeto, subestimam o fogo nos campos de altitude. Ler este trabalho evita usar a contagem de focos como se fosse área queimada.
+- SOUZA, V. S. et al. [Mapeamento de cicatrizes de queimada em campos de altitude com dados PlanetScope](https://www.udesc.br/arquivos/udesc/id_cpmenu/16921/MAPEAMENTO_DE_CICATRIZES____16947168851887_16921.pdf). UDESC, resumo de iniciação científica (dados de 2022).
+  **Por que está aqui:** traz a área queimada por mês no segundo semestre de 2022, com pico em setembro (4.933 ha) e agosto em segundo (2.062 ha). **Ligação com os dados:** confirma a temporada de agosto e setembro que o gráfico da Sugestão 2 mostra para todo o estado e oferece uma medida de área para calibrar a série de focos.
+
+**Pesquisa que os dados permitem.** Os trabalhos da UDESC mediram a área queimada em um único ano (2022) com imagens de alta resolução. Os dados do projeto oferecem o que falta para um artigo de séries temporais: 26 anos de focos (2000 a 2026) para identificar os anos atípicos, como 2020 e 2024, que merecem o mapeamento detalhado de cicatrizes, e 41 anos de uso e cobertura para relacionar o fogo à presença de pastagem e silvicultura nas áreas não indenizadas.
+
+
+### Estudo de caso 4. Parque Estadual da Serra do Tabuleiro: pinus invasor e o incêndio de 2019
+
+**O contexto.** Criado em 1975, o Tabuleiro é a maior UC de Santa Catarina, com cerca de 84 mil hectares. Em setembro de 2019, um incêndio criminoso consumiu **mais de 800 hectares** na Baixada do Maciambu, em Palhoça. Reportagens do ND+ de 2019 e 2020 mostram que o pinus, espécie exótica invasora, se espalha pelo parque, pode alterar o ecossistema e secar nascentes, e rebrotou depois do fogo. Entre 2017 e 2019, o projeto Viva Restinga eliminou 46.155 plantas exóticas em 200 ha da Baixada. A pesquisa histórica de Peres mostra que a região vive conflitos desde a criação do parque e que, em 2009, parte da Baixada do Maciambu foi recategorizada como APA.
+
+**O que os dados mostram.**
+
+| **Indicador** | **1985** | **2005** | **2018** | **2025** | **Leitura** |
+|----|----:|----:|----:|----:|----|
+| Silvicultura **dentro** do parque | 192 ha | 307 ha | 1.302 ha | 1.850 ha | quase 10 vezes mais, quase toda depois de 2005 |
+| Silvicultura na ZA oficial | 12 ha | 28 ha | 182 ha | 206 ha | a mesma tendência no entorno |
+| Restinga Herbácea ou Arbustiva dentro | 1.835 ha | 1.831 ha | | 1.608 ha | perda de 226 ha |
+| Vegetação nativa dentro | 95,0% | 95,6% | | 94,7% | estável no total do parque |
+| Desmatamento PRODES dentro | | | | | pico de 197 ha em 2010 e quase zero depois de 2017 |
+
+![](img/caso-tabuleiro-mapbiomas.png)
+
+*Mapa. Uso e cobertura da terra em 2005 e em 2019, ano das reportagens sobre o pinus. As manchas de silvicultura (marrom) se multiplicam no interior do parque, sobretudo na porção oeste e sul.*
+
+> ✅ **Corroboração:** as reportagens descrevem o pinus se espalhando dentro do parque, e o MapBiomas registra a classe Silvicultura dentro do limite passando de 307 ha (2005) para 1.302 ha (2018) e 1.850 ha (2025). Como um parque estadual não admite plantio comercial, esse crescimento é um forte indício de invasão e de plantios em áreas ainda não regularizadas, que os gestores precisam verificar em campo.
+{.is-check}
+
+> ⚠️ **Dois limites dos dados revelados por este caso:** (1) o MapBiomas não separa **plantio** de **invasão**: um pinhal invasor denso aparece como Silvicultura, e uma invasão esparsa no meio do campo ou da restinga pode nem aparecer. (2) Os focos publicados pelo projeto, que só incluem os de **confiança alta**, não registram o incêndio de setembro de 2019, nem no parque nem na APA do Entorno Costeiro. Para eventos assim, consulte também os focos de confiança nominal no próprio [FIRMS](https://firms.modaps.eosdis.nasa.gov/map/) e os mapas de cicatrizes. As duas lacunas viraram as propostas 4 e 5 da seção [Pesquisa com aprendizado de máquina e IA generativa](#pesquisa-com-aprendizado-de-máquina-e-ia-generativa).
+{.is-warning}
+
+**Notícias.**
+
+- [Presença de pinus no Parque Serra do Tabuleiro pode alterar ecossistema e secar nascentes](https://ndmais.com.br/meio-ambiente/presenca-de-pinus-no-parque-serra-do-tabuleiro-pode-alterar-ecossistema-e-secar-nascentes/), ND+, 28/09/2019.
+- [Um ano após incêndios, pinus começam a ser retirados do Parque Estadual Serra do Tabuleiro](https://ndmais.com.br/meio-ambiente/um-ano-apos-incendios-pinus-comecam-a-ser-retirados-do-parque-estadual-serra-do-tabuleiro/), ND+, 17/10/2020.
+
+**Artigos e trabalhos acadêmicos (PDF gratuito).**
+
+- PERES, J. A. [De parque a APA: uma análise do processo de recategorização de parte do Parque Estadual da Serra do Tabuleiro-SC](https://revistas.udesc.br/index.php/tempo/article/download/13767/9987). *Tempo e Argumento*, Florianópolis, 2019.
+  **Por que está aqui:** analisa o processo iniciado em 2004 que, em 2009, transformou parte da Baixada do Maciambu de parque em APA, os conflitos entre moradores e poder público e a ação de inconstitucionalidade proposta pela PGR em 2015. **Ligação com os dados:** os limites atuais do parque e da APA do Entorno Costeiro, cadastrados no projeto com histórico de versões, são o resultado desse processo. Com eles, dá para comparar o uso da terra nas áreas que saíram do parque com as que ficaram.
+- PERES, J. A. [Parque Estadual da Serra do Tabuleiro: natureza, legislação e conflitos na Baixada do Maciambú, Palhoça/SC (1975-2012)](https://repositorio.ufsc.br/xmlui/bitstream/handle/123456789/183619/PHST0604-T.pdf?sequence=-1&isAllowed=y). Tese (Doutorado em História), UFSC, 2017.
+  **Por que está aqui:** narra como a população que já vivia na Baixada se relacionou com o parque desde 1975 e como a ocupação humana interagiu com o ambiente. **Ligação com os dados:** oferece o contexto histórico e social para interpretar as mudanças de uso que o MapBiomas registra na Baixada a partir de 1985, como a expansão urbana e a troca de restinga por outros usos.
+
+**Pesquisa que os dados permitem.** Comparar, de 1985 a 2025, as áreas da Baixada do Maciambu que **saíram** do parque em 2009 com as que **ficaram** nele. Seria um teste quantitativo do efeito da recategorização, discutida por Peres, sobre restinga, silvicultura e área urbana.
+
+### Estudo de caso 5. APA da Baleia Franca: ocupação urbana na faixa costeira
+
+**O contexto.** A APA da Baleia Franca foi criada em setembro de 2000 e cobre cerca de 130 km do litoral sul catarinense, de Florianópolis a Balneário Rincão. Em março de 2025, uma perícia do MPF concluiu que um loteamento em Laguna está integralmente sobre restinga, em área de preservação permanente, e parcialmente dentro da APA, com supressão de vegetação primária da Mata Atlântica. Em julho de 2026, a imprensa noticiou um projeto na Câmara que ameaça a faixa terrestre da APA, em meio ao debate sobre APPs ocupadas de forma irregular.
+
+**O que os dados mostram** (parte terrestre da APA, de 2000 a 2025):
+
+| **Classe MapBiomas** | **2000** | **2025** | **Diferença** |
+|----|----:|----:|----:|
+| Área Urbanizada | 2.863 ha | 3.334 ha | +471 ha |
+| Silvicultura | 28 ha | 677 ha | +649 ha |
+| Restinga Herbácea ou Arbustiva | 4.983 ha | 4.153 ha | −829 ha |
+| Campo Alagado e Área Pantanosa | 902 ha | 445 ha | −457 ha |
+| Praia, Duna e Areal | 4.029 ha | 3.808 ha | −221 ha |
+
+Dentro da APA, o PRODES registra 1.622 ha de desmatamento de 2004 a 2023 (470 ha só em 2004), e o FIRMS registra 57 focos.
+
+![](img/caso-baleiafranca-mapbiomas.png)
+
+*Mapa. Uso e cobertura em 2000 (criação da APA) e em 2025, no trecho de Garopaba e Imbituba. A mancha urbana (vermelho) se expande ao longo da costa e das lagoas.*
+
+> ✅ **Corroboração:** o crescimento da área urbanizada e a perda de restinga e de áreas úmidas dentro da APA são justamente os processos descritos na perícia do MPF e no debate sobre ocupações irregulares. A tabela permite quantificar, por ano, uma pressão que as notícias descrevem caso a caso.
+{.is-check}
+
+> ⚠️ **Cuidado na leitura:** a APA é majoritariamente marinha, e as estatísticas do MapBiomas cobrem só a fração terrestre (cerca de 22% do polígono). Parte da expansão urbana da região fica fora dos limites da APA, por isso use o Buffer de Abrangência para ver o entorno.
+{.is-warning}
+
+**Notícias.**
+
+- [Ação do MPF aponta que licenciamento ambiental de loteamento em Laguna (SC) é inviável](https://www.mpf.mp.br/o-mpf/unidades/pr-sc/noticias/acao-do-mpf-aponta-que-licenciamento-ambiental-de-loteamento-em-laguna-sc-e-inviavel), MPF, 12/03/2025.
+- [Câmara ataca berçário de baleias francas e ameaça 130 km do litoral em SC](https://iclnoticias.com.br/camara-ataca-bercario-de-baleias-francas-em-sc/), ICL Notícias, 17/07/2026.
+
+**Artigos e trabalhos acadêmicos (PDF gratuito).**
+
+- PESSOA, M. B. [O processo de urbanização em áreas costeiras e suas implicações socioambientais: um estudo de caso em Garopaba, SC](https://www.udesc.br/arquivos/faed/id_cpmenu/1339/Manuela_Bressan_Pessoa_15835123021803_1339.pdf). Dissertação (Mestrado), UDESC, 2019.
+  **Por que está aqui:** mostra que a população de Garopaba dobrou entre 1991 e 2010 e que a urbanização desordenada levou a construções em encostas, margens de lagoas e áreas próximas à praia, além de registrar, para a APA, a pressão de silvicultura, mineração e ocupação urbana. **Ligação com os dados:** são as mesmas classes que mudam na tabela acima (área urbanizada +471 ha, silvicultura +649 ha, restinga −829 ha). O trabalho usa censos e entrevistas, e os dados do projeto acrescentam a dimensão espacial e anual.
+- [Cartografia e geodesign para interpretação da paisagem e geodiversidade na Área de Proteção Ambiental da Baleia Franca (SC)](https://revistas.uminho.pt/index.php/physisterrae/article/download/4635/6234/29239). *Physis Terrae*, v. 5, n. 1, p. 45-63, 2023. DOI: [10.21814/physisterrae.4635](https://doi.org/10.21814/physisterrae.4635).
+  **Por que está aqui:** é um trabalho de geodesign e geoturismo, que registra a ameaça da ocupação urbana, do agronegócio e da mineração ao patrimônio natural da APA. **Ligação com os dados:** os autores consideraram o MapBiomas e o descartaram para os seus mapas de unidades de paisagem em escala 1:25.000, porque os pixels de 30 m são grossos para esse detalhe. É um alerta útil: os dados do projeto servem para tendências por UC e por ano, e não para delimitar feições pequenas como uma duna ou uma lagoa.
+
+**Pesquisa que os dados permitem.** Medir a expansão urbana sobre restingas e áreas úmidas ano a ano, entre 1985 e 2025, cruzando a classe Área Urbanizada com as classes de restinga no raster pelo WCS. É o tipo de evidência quantitativa que falta no debate sobre os limites da APA.
+
+---
+
+## Cinco sugestões de artigos com os dados do projeto
+
+Os estudos de caso olham para uma UC de cada vez. As sugestões a seguir usam **todas as UCs** e propõem perguntas de pesquisa que dariam artigos ou trabalhos de conclusão, cada uma com os números atuais, os cuidados de interpretação e o caminho para reproduzir.
+
+### Sugestão 1. A pressão de desmatamento está dentro ou no entorno das UCs?
+
+**Por que importa.** Uma UC pode parecer conservada por dentro e, ao mesmo tempo, ficar ilhada por um entorno que perde vegetação. Saber onde o desmatamento se concentra orienta a fiscalização e o diálogo com os vizinhos.
+
+**O que os dados mostram.** Somando todos os anos do PRODES (2004 a 2023), as 186 UCs tiveram **7.032 ha** de desmatamento **dentro** e **45.960 ha no entorno**, ou seja, 6,5 vezes mais fora do que dentro. A série também mostra uma queda forte: 15.615 ha em 2004 e 320 ha em 2023. O maior desmatamento de entorno é o do **Parque Nacional das Araucárias** (4.306 ha no Buffer, contra 591 ha dentro).
+
+![](img/caso1-prodes-dentro-entorno.png)
+
+*Gráfico. Desmatamento PRODES por ano, dentro das UCs e nos entornos (ZA oficial e Buffer de Abrangência).*
+
+> 📘 **Como interpretar:** o anel do entorno é maior do que muitas UCs pequenas, então compare também **hectares por 1.000 ha de área**, e não só o total. Os anos sem barra (2005, 2007, 2009, 2012 e 2015) não significam desmatamento zero: o PRODES da Mata Atlântica não foi publicado anualmente no início da série. O ano PRODES vai de agosto a julho.
+{.is-concept}
+
+**Proposta de artigo.** *"Efeito de borda do desmatamento nas UCs de Santa Catarina (2004 a 2023)"*: comparar a taxa de desmatamento dentro e no entorno por categoria e esfera de gestão, e testar se a pressão no entorno diminuiu depois da criação de cada UC.
+
+**Como reproduzir.** Consultas [9.2](#92-top-10-ucs-com-maior-área-desmatada-prodes-separando-uc-e-entorno) e [9.13](#913-série-anual-de-desmatamento-prodes-dentro-da-uc-x-entorno), ou a receita do Excel "Desmatamento PRODES dentro da UC e no entorno" ([seção 4.5](#45-receitas-de-análise-no-excel)).
+
+### Sugestão 2. Quando o fogo acontece: o calendário das queimadas
+
+**Por que importa.** Saber **em que meses** e **onde** os focos se concentram permite planejar brigadas, campanhas e o manejo integrado do fogo antes da temporada crítica.
+
+**O que os dados mostram.** Dos 1.628 focos distintos (2000 a 2026), **478 caíram em agosto** (29%), e agosto e setembro somam **756 focos** (46%). Só 2,1% foram detectados à noite. A UC com mais focos **dentro** do limite é o **Parque Nacional de São Joaquim** (128 focos), seguido da APA da Baleia Franca (57).
+
+![](img/caso2-firms-sazonalidade.png)
+
+*Gráfico. Focos de calor distintos por mês, nas UCs e nos entornos. Agosto e setembro, em vermelho, concentram quase metade dos focos.*
+
+> 📘 **Como interpretar:** um foco é a detecção de calor num pixel de 375 m (VIIRS) ou 1 km (MODIS), não o tamanho do incêndio. Sensores diferentes enxergam o mesmo fogo, por isso compare **cada sensor com ele mesmo** ao longo dos anos. A partir de 2012 o VIIRS detecta focos menores, então mais focos em anos recentes não significam, sozinhos, mais fogo. Nuvens escondem focos.
+{.is-concept}
+
+**Proposta de artigo.** *"Sazonalidade e recorrência do fogo nas UCs de Santa Catarina"*: cruzar os focos por mês com a classe de uso e cobertura do MapBiomas no local do foco (campo, pastagem, silvicultura) para separar o fogo de manejo de pastagem dos incêndios em áreas naturais.
+
+**Como reproduzir.** Consultas [9.10](#910-focos-de-calor-por-ano-e-sensor-não-some-sensores-diferentes-como-se-fossem-um-só), [9.11](#911-sazonalidade-dos-focos-de-calor-distribuição-por-mês-nr_mes-já-vem-na-data-de-brasília) e [9.12](#912-focos-por-uc-densidade-por-1000-ha-intensidade-média-frp-e-proporção-noturna). No QGIS, o mapa de calor da [seção 3.9](#39-mapa-de-calor-dos-focos).
+
+> 💡 **No Power BI, sem login:** em **Obter dados > Web**, cole a URL de focos da [seção 4.2](#42-uma-url-pronta-para-cada-base) com as colunas `nr_ano, nr_mes, instrument, detection_id`. Monte um **gráfico de colunas empilhadas** com `nr_mes` no Eixo X, `instrument` na Legenda e **Contagem (Distinta) de detection_id** em Valores. Como essas colunas são inteiras ou texto, não há o problema do separador decimal da [seção 5.4](#54-alternativa-sem-login-wfs-em-csv).
+{.is-success}
+
+### Sugestão 3. Silvicultura substituindo vegetação nativa no entorno
+
+**Por que importa.** Em Santa Catarina, a troca de floresta e campo nativos por plantios de pinus e eucalipto é uma das principais pressões sobre a Floresta com Araucárias e os campos de altitude. O MapBiomas permite acompanhar essa troca ano a ano, de 1985 a 2025.
+
+**O que os dados mostram.** Somando todos os entornos, a **silvicultura passou de 17.128 ha (1985) para 76.996 ha (2025)**, 4,5 vezes mais. Em dois entornos a mudança é dramática. Na **RPPN Emilio Einsfeld Filho**, a vegetação nativa caiu de 89,8% para 45,7% do entorno, enquanto a silvicultura subiu de 1,5% para 45,1%. No **Parque Nacional das Araucárias**, a nativa caiu de 55,3% para 38,3%, e a silvicultura subiu de 6,7% para 29,4%.
+
+![](img/caso3-nativa-silvicultura-entorno.png)
+
+*Gráfico. Vegetação nativa (floresta e campos) e silvicultura, em % da área do entorno, de 1985 a 2025.*
+
+> 📘 **Como interpretar:** "vegetação nativa" aqui é a soma das classes dos grupos Floresta (código-mãe 1) e Vegetação Herbácea e Arbustiva (código-mãe 10) da legenda. O MapBiomas classifica pixels de 30 m e tem acurácia própria, publicada pelo projeto. Mudanças de poucos hectares podem ser ruído de classificação, mas tendências de décadas, como as da Figura F, são sinais robustos.
+{.is-concept}
+
+**Proposta de artigo.** *"Expansão da silvicultura no entorno de UCs da Floresta com Araucárias (1985 a 2025)"*: medir a taxa anual de conversão por UC e testar se ela mudou após a criação de cada unidade ou após a aprovação do seu plano de manejo.
+
+**Como reproduzir.** Consultas [9.7](#97-ganho-ou-perda-de-vegetação-nativa-entre-o-primeiro-e-o-último-ano-por-uc), [9.8](#98-pressão-agropecuária-no-entorno-za-ou-buffer-de-abrangência-pastagem-agricultura-silvicultura-e-mosaico) e [9.9](#99-avanço-da-silvicultura-plantios-de-pinus-e-eucalipto-dentro-e-no-entorno-das-ucs), ou o gráfico dinâmico da [seção 4.2](#42-uma-url-pronta-para-cada-base).
+
+### Sugestão 4. Alertas recentes para relatórios técnicos e fiscalização
+
+**Por que importa.** O MapBiomas Alerta publica desmatamentos **validados por analistas**, com imagens de antes e depois. Para o órgão gestor de uma UC, a lista de alertas recentes no seu entorno é um insumo direto para vistorias e relatórios.
+
+**O que os dados mostram.** De 2019 a julho de 2026 foram **267 alertas**, somando **810 ha**. **87%** dessa área está nos **Buffers de Abrangência**, 9% dentro das UCs e 3% nas ZAs oficiais. O ano com mais alertas foi 2022 (70). Em 2025 foram 28 e, até julho de 2026, 17. As maiores áreas recentes (2025 e 2026) estão no entorno do Parque Natural Municipal Carijós (22,3 ha) e da RPPN Reserva Volta Velha (20,9 ha).
+
+![](img/caso4-alertas-por-ano.png)
+
+*Gráfico. Área em alertas validados do MapBiomas Alerta por ano de detecção, com o número de alertas sobre cada barra.*
+
+> 📘 **Como interpretar:** um alerta indica supressão de vegetação confirmada por imagens, mas **não diz se ela foi autorizada ou ilegal**: isso depende de cruzar com licenças e autorizações. Cada alerta tem um código (`id_alerta_original`) que pode ser consultado no [MapBiomas Alerta](https://alerta.mapbiomas.org/), com o laudo e as imagens. Alertas recentes ainda podem ser revisados pelo MapBiomas.
+{.is-concept}
+
+**Proposta de artigo.** *"Relatório técnico trimestral de alertas no entorno das UCs"*: uma ficha por UC com os alertas do período, as datas das imagens de antes e depois e o link do laudo, para enviar aos órgãos gestores. É um produto de extensão de baixo custo, que se atualiza sozinho pelo WFS.
+
+**Como reproduzir.** Consultas [9.1](#91-top-10-ucs-com-mais-alertas-mapbiomas-dentro-da-uc-e-no-entorno) e [9.14](#914-alertas-mapbiomas-por-ano-de-detecção-e-sistema-de-origem-com-área-média), ou a URL de alertas da [seção 4.2](#42-uma-url-pronta-para-cada-base) com `&sortBy=dt_deteccao%20DESC`.
+
+### Sugestão 5. As UCs estão conservando a vegetação?
+
+**Por que importa.** É a pergunta central sobre áreas protegidas: o território dentro da UC está mais conservado do que o de fora, e a diferença aumenta com o tempo?
+
+**O que os dados mostram.** Nas UCs de **Proteção Integral**, a vegetação nativa dentro do limite ficou estável (93,6% em 1985 e 94,1% em 2025), enquanto no entorno caiu de 57,2% para 51,2%. Nas de **Uso Sustentável**, a perda aparece dos dois lados: de 65,8% para 62,6% dentro e de 62,6% para 57,0% no entorno.
+
+![](img/caso5-efetividade-grupos.png)
+
+*Gráfico. Vegetação nativa dentro e no entorno das UCs, por grupo do SNUC, de 1985 a 2025.*
+
+> 📘 **Como interpretar:** a comparação é **descritiva**. As UCs costumam ser criadas onde a vegetação já estava mais conservada, então parte da diferença existia antes da criação. Para falar em "efeito" da UC, um estudo precisa comparar com áreas parecidas sem proteção (pareamento) e usar a data de criação de cada unidade. Lembre também que UCs sobrepostas são contadas mais de uma vez nos totais.
+{.is-concept}
+
+**Proposta de artigo.** *"Efetividade das UCs de Santa Catarina na manutenção da vegetação nativa (1985 a 2025)"*: um estudo com pareamento estatístico entre UCs e áreas semelhantes, separado por grupo, esfera e data de criação. O artigo de Nodari (2011), citado nos estudos de caso 1 e 2, discute exatamente essa pergunta do ponto de vista histórico.
+
+**Como reproduzir.** Consulta [9.7](#97-ganho-ou-perda-de-vegetação-nativa-entre-o-primeiro-e-o-último-ano-por-uc) e o exemplo em Python da [seção 10.1](#101-pelo-wfs-sem-login), que já calcula a floresta por UC e ano.
+
+
+---
+
+## Pesquisa com aprendizado de máquina e IA generativa
+
+As propostas a seguir só se tornam viáveis porque o pipeline já resolveu o trabalho mais caro de qualquer projeto de IA geoespacial: **dados limpos, alinhados e com proveniência**. O projeto oferece:
+
+- 41 anos de MapBiomas recortados pelas mesmas geometrias;
+- PRODES, Alertas e FIRMS relacionados a cada UC e entorno, num mesmo sistema de referência;
+- histórico de versões das geometrias e manifestos imutáveis que registram de onde veio cada dado;
+- views somente leitura, com tempo máximo por consulta, onde um agente de IA pode consultar sem risco de alterar nada;
+- rasters COG com impressão digital (SHA-256), que garantem que um modelo foi treinado sobre exatamente os mesmos pixels.
+
+> 📘 **Conceito:** **aprendizado de máquina (ML)** são modelos que aprendem padrões a partir de exemplos. **Aprendizado profundo (DL)** é o ML com redes neurais de muitas camadas, bom para imagens e séries temporais. **IA generativa** são modelos de linguagem (LLMs) que leem e escrevem texto. Um **agente de IA** é um LLM que, em vez de só responder, planeja passos e usa ferramentas (consultas SQL, serviços de mapa, scripts) para chegar a um resultado verificável.
+{.is-concept}
+
+### Proposta 1. Agente que corrobora notícias ambientais com dados abertos
+
+**A ideia.** Automatizar o que foi feito à mão nos estudos de caso deste capítulo. O agente recebe uma notícia, uma ação do Ministério Público ou um laudo e segue estes passos:
+
+1. extrai a UC, o tipo de pressão (fogo, desmatamento, pinus, urbanização) e a data;
+2. escolhe as tabelas e a janela de anos ao redor do evento;
+3. consulta `mapbiomas_clip`, `prodes_clip`, `mapbiomas_alerta_clip` e `firms_clip`;
+4. pede ao WMS os mapas de antes e depois;
+5. devolve uma ficha de corroboração com os números, os mapas e as **limitações** de cada fonte, como a baixa sensibilidade do FIRMS nos campos de altitude.
+
+**Por que só é viável com este ETL.** O agente precisa de uma interface estável e segura: as views do `reporting` têm nomes e colunas documentados (o [dicionário de dados](#8-dicionário-de-dados) vira a descrição das ferramentas), o login é somente leitura com tempo máximo por consulta e todos os temas compartilham `id_uc`, `tipo_cruzamento` e `nr_ano`. Sem isso, cada pergunta exigiria baixar e recortar as fontes do zero.
+
+**Como avaliar.** Usar os cinco estudos de caso acima como conjunto de referência e medir se o agente encontra os mesmos números, escolhe anos adequados e aponta as mesmas ressalvas. Toda afirmação numérica deve vir de uma consulta registrada, que o avaliador pode reexecutar.
+
+**Referências.** Benchmarks recentes avaliam agentes LLM em tarefas geoespaciais ambientais com ferramentas: [GeoNatureAgent Benchmark (arXiv 2606.12821)](https://arxiv.org/abs/2606.12821), [GeoNatureAgent: framework de avaliação pré-produção (arXiv 2610.09112)](https://arxiv.org/abs/2610.09112) e [GeoBenchX (arXiv 2503.18129)](https://arxiv.org/abs/2503.18129).
+
+### Proposta 2. Agente de relatórios técnicos por UC, com cada número rastreável
+
+**A ideia.** Um sistema multiagente que produz, a cada trimestre, um relatório técnico por UC para o órgão gestor. Um agente **planejador** define as seções (alertas recentes, focos da temporada, mudança de uso desde a última coleta). Um agente **de SQL** escreve consultas PostGIS sobre as views. Um agente **cartógrafo** gera os mapas pelo WMS. Um agente **revisor** confere se cada número do texto aparece no resultado de uma consulta e se as ressalvas obrigatórias estão presentes (alerta não é infração, foco não é área queimada).
+
+**Por que só é viável com este ETL.**
+- Cada registro carrega `dt_carga`, e o banco registra a versão da geometria usada. Assim o relatório pode citar "dados carregados em tal data, sobre o limite vigente desde tal data".
+- Cada alerta traz `id_alerta_original`, o que permite incluir o link do laudo do MapBiomas.
+- As cargas semanais e a orquestração por DAGs dão o gatilho natural: quando a DAG de alertas termina, o agente gera o relatório.
+
+**Como avaliar.** Comparar os relatórios gerados com as [consultas prontas do capítulo 9](#9-consultas-prontas), que funcionam como gabarito, e medir a taxa de números sem fonte (deve ser zero).
+
+**Referências.** [From Questions to Queries: Multi-Agent Framework for Spatial Text-to-SQL em PostGIS (arXiv 2510.21045)](https://arxiv.org/abs/2510.21045), [GISclaw (arXiv 2603.26845)](https://arxiv.org/abs/2603.26845) e [GeoJSON Agents (arXiv 2509.08863)](https://arxiv.org/abs/2509.08863). Há uma lista curada em [awesome-agentic-AI-for-Geospatial-Data](https://github.com/mohammadhashemii/awesome-agentic-AI-for-Geospatial-Data).
+
+### Proposta 3. Previsão do risco de conversão no entorno das UCs com redes espaço-temporais
+
+**A ideia.** Treinar um modelo de deep learning espaço-temporal (ConvLSTM ou um transformer de séries temporais de imagens) que, a partir da sequência anual de mapas do MapBiomas, preveja **a probabilidade de cada pixel do entorno deixar de ser vegetação nativa** nos próximos um a três anos, com atenção especial à conversão para silvicultura e soja que aparece nos estudos de caso 1, 2 e 4. As variáveis de entrada seriam:
+- o histórico de classes do pixel;
+- a distância à borda da UC e ao desmatamento anterior (PRODES e Alertas);
+- a densidade de focos;
+- o tipo de entorno (ZA oficial ou Buffer).
+
+**Por que só é viável com este ETL.** Os 41 rasters anuais já estão recortados, no mesmo sistema de referência, publicados como COG e catalogados com checksum. As geometrias de UC e entorno são versionadas, de modo que o rótulo "dentro" ou "no entorno" não muda por acidente entre anos. A reconstrução a partir da Bronze garante que outro grupo consiga reproduzir exatamente o mesmo conjunto de treino.
+
+**Como avaliar.** Validação temporal honesta: treinar com 1985 a 2018 e testar de 2019 a 2025, comparando as áreas de maior risco previsto com os **Alertas** que de fato ocorreram. O resultado seria uma camada de prioridade de fiscalização por UC, que poderia ser publicada pelo próprio pipeline como um novo tema.
+
+**Referência.** PIŠL, J.; SUMBUL, G.; LENCZNER, G.; WEGNER, J. D. [Towards high-resolution forecasting of tropical deforestation with deep learning](https://iopscience.iop.org/article/10.1088/1748-9326/aebda8). *Environmental Research Letters* (acesso aberto). O estudo usa ConvLSTM com mapas do MapBiomas e áreas protegidas na Amazônia e chega a F1 de 0,47 na previsão de um ano. A proposta aqui adapta a abordagem à Mata Atlântica e ao entorno das UCs.
+
+### Proposta 4. Mapa anual de cicatrizes de queimada nos campos de altitude com modelos de fundação
+
+**A ideia.** O estudo de caso 3 mostrou o principal ponto cego dos focos de calor: nos campos de altitude, eles registram menos de 1% das queimadas reais. A proposta é ajustar um **modelo de fundação geoespacial**, o Prithvi-EO-2.0 da IBM e da NASA, que já tem versão treinada para cicatrizes de queimada, a imagens Harmonized Landsat Sentinel (HLS) do planalto catarinense. Como rótulos de referência entram as cicatrizes mapeadas pela UDESC em 2022, e o resultado é uma série anual de **área queimada** para o PARNA de São Joaquim, o Tabuleiro e as demais UCs com campos naturais.
+
+**Por que só é viável com este ETL.**
+- A classe Formação Campestre do `mapbiomas_clip` delimita onde procurar.
+- A série FIRMS de 2000 a 2026 aponta os anos e meses de maior atividade, onde vale concentrar a anotação (aprendizado ativo).
+- As geometrias de UC e de ZA permitem calcular a área queimada dentro e no entorno.
+- A nova série pode entrar no pipeline como mais um tema, com o mesmo contrato de dados, e ficar disponível no WFS para todos.
+
+**Como avaliar.** IoU (sobreposição) com as cicatrizes da UDESC em 2022, que ficariam fora do treino, e checagem de anos com eventos conhecidos, como o incêndio do Tabuleiro em setembro de 2019, ausente dos focos publicados.
+
+**Referências.** [Prithvi-EO-2.0-300M-BurnScars (Hugging Face)](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars) e o artigo de origem dos modelos Prithvi, [Foundation Models for Generalist Geospatial Artificial Intelligence (arXiv 2310.18660)](https://arxiv.org/abs/2310.18660). Os resumos da UDESC citados no estudo de caso 3 fornecem os rótulos regionais.
+
+### Proposta 5. Separar plantio de invasão de pinus com embeddings de satélite
+
+**A ideia.** Os estudos de caso 1, 3 e 4 esbarraram no mesmo limite: o MapBiomas chama de Silvicultura tanto o plantio comercial quanto o pinhal invasor. A proposta usa **embeddings de observação da Terra**, vetores que resumem a aparência e a textura de cada trecho de imagem, gerados por um modelo de fundação como o Clay, para treinar um classificador leve. Ele separaria três situações dentro da classe Silvicultura e nas bordas dos campos e restingas: **plantio regular**, **invasão densa** e **invasão esparsa em campo nativo**.
+
+**Por que só é viável com este ETL.**
+- O `mapbiomas_clip` e o raster pelo WCS indicam exatamente quais pixels estudar e há quanto tempo cada um é Silvicultura. Pinhais que surgem sem plantio contínuo ao redor são candidatos a invasão.
+- As UCs de Proteção Integral, onde plantio comercial não é permitido, oferecem rótulos naturais de "suspeita de invasão".
+- As áreas de erradicação documentadas, como os 200 ha do Viva Restinga no Tabuleiro, servem de validação.
+
+**Como avaliar.** Precisão e revocação da classe "invasão" em amostras verificadas em campo pelas equipes das UCs. O produto final seria uma camada de prioridade para o controle de exóticas, por UC, atualizada a cada nova coleção do MapBiomas.
+
+**Referências.** [Clay Foundation Model (Hugging Face)](https://huggingface.co/made-with-clay/Clay) e [Earth Embeddings as Products: Taxonomy, Ecosystem, and Standardized Access (arXiv 2601.13134)](https://arxiv.org/abs/2601.13134).
+
+> ⚠️ **Cuidados comuns a todas as propostas:** modelos de IA herdam os erros dos dados de entrada. Por isso valem as ressalvas de cada fonte: acurácia do MapBiomas, sensibilidade do FIRMS, revisões do Alerta e anos sem PRODES. Um agente que escreve relatórios deve ser proibido de afirmar ilegalidade, e qualquer camada de risco deve ser apresentada como **apoio à decisão**, nunca como prova.
+{.is-warning}
+
+---
 
 ## 10. Acesso por Python
 
