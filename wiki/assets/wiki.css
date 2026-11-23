@@ -165,7 +165,7 @@ pre:hover .copy, .copy:focus { opacity: 1; }
 
 /* Imagens e diagramas */
 img { display: block; max-width: 100%; height: auto; margin: 14px 0 6px; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-p:has(> img) + p > em:only-child { display: block; font-size: 14px; margin-bottom: 18px; }
+p:has(img) + p > em:only-child { display: block; font-size: 14px; margin-bottom: 18px; }
 .mermaid { margin: 18px 0 22px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; text-align: center; overflow-x: auto; }
 
 .page-footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
@@ -219,7 +219,16 @@ p:has(> img) + p > em:only-child { display: block; font-size: 14px; margin-botto
 .concept-fig svg { display: block; width: 100%; max-width: 860px; height: auto; margin: 0 auto; color: var(--text); }
 .concept-fig svg text { fill: currentColor; font-family: "Roboto", sans-serif; }
 
-/* Imagens clicáveis */
+/* Imagens clicáveis com selo "Ampliar" (mesmo comportamento dos slides) */
+.zoomable { position: relative; display: inline-block; max-width: 100%; cursor: zoom-in; }
+.zoomable img { margin: 14px 0 6px; }
+.zoomable:hover img { border-color: var(--primary); }
+.zoom-badge {
+  position: absolute; right: 10px; bottom: 16px; padding: 4px 10px; border-radius: 999px;
+  background: rgba(13, 71, 161, .88); color: #fff; font: 500 12.5px "Roboto", sans-serif;
+  pointer-events: none; opacity: .85; transition: opacity .15s;
+}
+.zoomable:hover .zoom-badge { opacity: 1; }
 .content img { cursor: zoom-in; }
 .content img:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 
@@ -231,10 +240,12 @@ p:has(> img) + p > em:only-child { display: block; font-size: 14px; margin-botto
 .lightbox button { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; font: 500 14px "Roboto", sans-serif; padding: 6px 12px; cursor: pointer; }
 .lightbox button:hover { background: rgba(255,255,255,.22); }
 .lightbox .lb-close { font-size: 22px; width: 44px; height: 44px; padding: 0; }
-.lightbox .lb-stage { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 10px; }
-.lightbox .lb-stage img { max-width: 100%; max-height: 100%; margin: 0; border: 0; box-shadow: none; background: #fff; cursor: zoom-in; }
-.lightbox .lb-stage.zoomed { align-items: flex-start; justify-content: flex-start; }
-.lightbox .lb-stage.zoomed img { max-width: none; max-height: none; cursor: zoom-out; }
+.lightbox .lb-stage { position: relative; flex: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 10px; cursor: zoom-in; touch-action: none; }
+.lightbox .lb-stage.zoomed { cursor: grab; }
+.lightbox .lb-stage.dragging { cursor: grabbing; }
+.lightbox .lb-stage img { max-width: 100%; max-height: 100%; margin: 0; border: 0; border-radius: 4px; box-shadow: none; background: #fff; cursor: inherit; transform-origin: center center; transition: transform .08s ease-out; user-select: none; -webkit-user-drag: none; }
+.lightbox .lb-stage.dragging img { transition: none; }
+.lightbox .lb-pct { min-width: 52px; text-align: center; font: 500 13px "Roboto Mono", monospace; color: #cbd5e1; }
 .lightbox .lb-hint { text-align: center; font-size: 12.5px; color: #94a3b8; padding: 6px; }
 
 /* Passos numerados mais legíveis */

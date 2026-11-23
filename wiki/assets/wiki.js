@@ -124,7 +124,9 @@
 
   document.querySelector(".to-top").addEventListener("click", () => window.scrollTo({ top: 0 }));
 
-  // Figuras em tela cheia: clique (ou Enter) na imagem abre; X, Esc ou clique fora fecham.
+  // Figuras em tela cheia, como nos slides da defesa: clique (ou Enter) na imagem abre.
+  // Dentro: roda do mouse ou + / − dão zoom, arrastar move, duplo clique alterna o zoom,
+  // 0 ou "Ajustar" volta ao tamanho da tela, e X, Esc ou clique fora fecham.
   const lb = document.createElement("div");
   lb.className = "lightbox";
   lb.setAttribute("role", "dialog");
@@ -132,15 +134,38 @@
   lb.setAttribute("aria-label", "Imagem em tela cheia");
   lb.innerHTML =
     '<div class="lb-bar"><span class="lb-cap"></span>' +
-    '<button type="button" class="lb-zoom">Tamanho real</button>' +
-    '<button type="button" class="lb-open">Abrir em nova aba</button>' +
+    '<button type="button" class="lb-out" aria-label="Diminuir zoom">−</button>' +
+    '<span class="lb-pct">100%</span>' +
+    '<button type="button" class="lb-in" aria-label="Aumentar zoom">+</button>' +
+    '<button type="button" class="lb-fit">Ajustar</button>' +
+    '<button type="button" class="lb-open">Abrir original</button>' +
     '<button type="button" class="lb-close" aria-label="Fechar (Esc)">✕</button></div>' +
-    '<div class="lb-stage"><img alt=""></div>' +
-    '<div class="lb-hint">Clique na imagem para alternar o tamanho real · Esc ou ✕ para voltar ao guia</div>';
+    '<div class="lb-stage"><img alt="" draggable="false"></div>' +
+    '<div class="lb-hint">Roda do mouse ou + / − para zoom · arraste para mover · duplo clique alterna o zoom · Esc ou ✕ para voltar ao guia</div>';
   document.body.appendChild(lb);
   const lbImg = lb.querySelector("img");
   const lbStage = lb.querySelector(".lb-stage");
+  const lbPct = lb.querySelector(".lb-pct");
   let lastFocus = null;
+  let z = 1, x = 0, y = 0, drag = null, moved = false;
+  const apply = () => {
+    if (z <= 1) { z = 1; x = 0; y = 0; }
+    lbImg.style.transform = `translate(${x}px, ${y}px) scale(${z})`;
+    lbStage.classList.toggle("zoomed", z > 1);
+    lbPct.textContent = Math.round(z * 100) + "%";
+  };
+  const zoomAt = (factor, cx, cy) => {
+    const nz = Math.max(1, Math.min(8, z * factor));
+    if (cx !== undefined) {
+      // mantém o ponto sob o cursor parado enquanto o zoom muda
+      const r = lbStage.getBoundingClientRect();
+      const px = cx - (r.left + r.width / 2), py = cy - (r.top + r.height / 2);
+      x = px - (px - x) * (nz / z);
+      y = py - (py - y) * (nz / z);
+    }
+    z = nz;
+    apply();
+  };
   const captionOf = (img) => {
     const p = img.closest("p");
     const next = p && p.nextElementSibling;
@@ -152,7 +177,7 @@
     lbImg.src = img.currentSrc || img.src;
     lbImg.alt = img.alt;
     lb.querySelector(".lb-cap").textContent = captionOf(img);
-    lbStage.classList.remove("zoomed");
+    z = 1; apply();
     lb.classList.add("open");
     document.body.style.overflow = "hidden";
     lb.querySelector(".lb-close").focus();
@@ -162,19 +187,55 @@
     document.body.style.overflow = "";
     if (lastFocus) lastFocus.focus();
   };
-  const toggleZoom = () => lbStage.classList.toggle("zoomed");
+
+  // Selo "Ampliar" sobre cada imagem do guia, como nas figuras dos slides.
   document.querySelectorAll(".content img").forEach((img) => {
-    img.addEventListener("click", () => openLb(img));
+    const wrap = document.createElement("span");
+    wrap.className = "zoomable";
+    img.parentNode.insertBefore(wrap, img);
+    wrap.appendChild(img);
+    const badge = document.createElement("span");
+    badge.className = "zoom-badge";
+    badge.setAttribute("aria-hidden", "true");
+    badge.textContent = "⤢ Ampliar";
+    wrap.appendChild(badge);
+    wrap.addEventListener("click", () => openLb(img));
     img.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openLb(img); }
     });
   });
+
   lb.querySelector(".lb-close").addEventListener("click", closeLb);
-  lb.querySelector(".lb-zoom").addEventListener("click", toggleZoom);
+  lb.querySelector(".lb-in").addEventListener("click", () => zoomAt(1.4));
+  lb.querySelector(".lb-out").addEventListener("click", () => zoomAt(1 / 1.4));
+  lb.querySelector(".lb-fit").addEventListener("click", () => { z = 1; apply(); });
   lb.querySelector(".lb-open").addEventListener("click", () => window.open(lbImg.src, "_blank", "noopener"));
-  lbImg.addEventListener("click", toggleZoom);
-  lbStage.addEventListener("click", (e) => { if (e.target === lbStage) closeLb(); });
+  lbStage.addEventListener("wheel", (e) => { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY); }, { passive: false });
+  lbStage.addEventListener("dblclick", (e) => { if (z > 1) { z = 1; apply(); } else zoomAt(2.5, e.clientX, e.clientY); });
+  lbStage.addEventListener("pointerdown", (e) => {
+    moved = false;
+    if (z <= 1) return;
+    drag = { sx: e.clientX, sy: e.clientY, x, y };
+    lbStage.setPointerCapture(e.pointerId);
+    lbStage.classList.add("dragging");
+  });
+  lbStage.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    x = drag.x + dx; y = drag.y + dy; apply();
+  });
+  const endDrag = () => { drag = null; lbStage.classList.remove("dragging"); };
+  lbStage.addEventListener("pointerup", endDrag);
+  lbStage.addEventListener("pointercancel", endDrag);
+  lbStage.addEventListener("click", (e) => { if (!moved && e.target === lbStage && z === 1) closeLb(); });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && lb.classList.contains("open")) closeLb();
+    if (!lb.classList.contains("open")) return;
+    if (e.key === "Escape") closeLb();
+    else if (e.key === "+" || e.key === "=") zoomAt(1.4);
+    else if (e.key === "-") zoomAt(1 / 1.4);
+    else if (e.key === "0") { z = 1; apply(); }
+    else return;
+    e.preventDefault();
   });
 })();
