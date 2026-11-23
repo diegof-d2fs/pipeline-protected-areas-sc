@@ -55,7 +55,7 @@ Este guia foi escrito para servir tanto a quem **nunca abriu um programa de mapa
 <li><a href="#6-dbeaver-e-outros-clientes-sql">Conectar ao banco</a></li>
 <li><a href="#8-dicionário-de-dados">Dicionário de dados</a></li>
 <li><a href="#9-consultas-prontas">15 consultas prontas</a></li>
-<li><a href="#10-acesso-por-python">Python</a></li>
+<li><a href="#13-acesso-por-python">Python</a></li>
 </ol>
 </div>
 <div class="card c-orange">
@@ -63,9 +63,9 @@ Este guia foi escrito para servir tanto a quem **nunca abriu um programa de mapa
 <strong>Quero ideias de pesquisa</strong>
 <span class="time">cerca de 20 minutos</span>
 <ol>
-<li><a href="#estudos-de-caso-cinco-ucs-notícias-artigos-e-dados">5 UCs cruzadas com notícias e artigos</a></li>
-<li><a href="#cinco-sugestões-de-artigos-com-os-dados-do-projeto">5 sugestões de artigos</a></li>
-<li><a href="#pesquisa-com-aprendizado-de-máquina-e-ia-generativa">IA, agentes e deep learning</a></li>
+<li><a href="#10-estudos-de-caso-cinco-ucs-notícias-artigos-e-dados">5 UCs cruzadas com notícias e artigos</a></li>
+<li><a href="#11-cinco-sugestões-de-artigos-com-os-dados-do-projeto">5 sugestões de artigos</a></li>
+<li><a href="#12-pesquisa-com-aprendizado-de-máquina-e-ia-generativa">IA, agentes e deep learning</a></li>
 <li><a href="#9-consultas-prontas">Consultas para reproduzir</a></li>
 </ol>
 </div>
@@ -103,14 +103,14 @@ As caixas coloridas seguem sempre o mesmo código, para você saber de longe o q
 - [7. Problemas comuns](#7-problemas-comuns)
 - [8. Dicionário de dados](#8-dicionário-de-dados)
 - [9. Consultas prontas](#9-consultas-prontas)
-- [Estudos de caso: cinco UCs, notícias, artigos e dados](#estudos-de-caso-cinco-ucs-notícias-artigos-e-dados)
-- [Cinco sugestões de artigos com os dados do projeto](#cinco-sugestões-de-artigos-com-os-dados-do-projeto)
-- [Pesquisa com aprendizado de máquina e IA generativa](#pesquisa-com-aprendizado-de-máquina-e-ia-generativa)
-- [10. Acesso por Python](#10-acesso-por-python)
-- [11. Oficinas: modo eventos](#11-oficinas-modo-eventos)
-- [12. Cobertura e limitações dos dados](#12-cobertura-e-limitações-dos-dados)
-- [13. Créditos e citação das fontes](#13-créditos-e-citação-das-fontes)
-- [14. Siglas](#14-siglas)
+- [10. Estudos de caso: cinco UCs, notícias, artigos e dados](#10-estudos-de-caso-cinco-ucs-notícias-artigos-e-dados)
+- [11. Cinco sugestões de artigos com os dados do projeto](#11-cinco-sugestões-de-artigos-com-os-dados-do-projeto)
+- [12. Pesquisa com aprendizado de máquina e IA generativa](#12-pesquisa-com-aprendizado-de-máquina-e-ia-generativa)
+- [13. Acesso por Python](#13-acesso-por-python)
+- [14. Oficinas: modo eventos](#14-oficinas-modo-eventos)
+- [15. Cobertura e limitações dos dados](#15-cobertura-e-limitações-dos-dados)
+- [16. Créditos e citação das fontes](#16-créditos-e-citação-das-fontes)
+- [17. Siglas](#17-siglas)
 - [Para aprender mais](#para-aprender-mais)
 - [Referências](#referências)
 
@@ -131,7 +131,7 @@ As caixas coloridas seguem sempre o mesmo código, para você saber de longe o q
 | [Excel](#4-excel) | WFS em CSV | não | Tabelas atualizáveis e gráficos dinâmicos |
 | [Power BI](#5-power-bi-desktop) | banco ou WFS em CSV | banco: sim | Painéis com várias bases relacionadas |
 | [DBeaver e clientes SQL](#6-dbeaver-e-outros-clientes-sql) | banco PostgreSQL | sim | Consultas livres e espaciais em SQL |
-| [Python](#10-acesso-por-python) | WFS ou banco | banco: sim | Análises reprodutíveis com pandas e geopandas |
+| [Python](#13-acesso-por-python) | WFS ou banco | banco: sim | Análises reprodutíveis com pandas e geopandas |
 
 ---
 
@@ -332,7 +332,7 @@ Ele cobre quatro formas de acesso, da mais simples para a mais técnica:
 - **Power BI**, conectado ao banco de dados com login;
 - **DBeaver** (ou outro cliente SQL), conectado ao banco com login, para consultas livres em SQL.
 
-O [capítulo 8](#8-dicionário-de-dados) traz o dicionário de dados: o que cada tabela contém, de onde vem cada dado, como ele foi gerado e para que serve. O [capítulo 9](#9-consultas-prontas) reúne 15 consultas prontas para análises de geoprocessamento e sensoriamento remoto. Os capítulos 10 a 13 tratam do acesso por Python, das oficinas com o modo eventos, da cobertura e das limitações de cada base e de como citar as fontes.
+O [capítulo 8](#8-dicionário-de-dados) traz o dicionário de dados: o que cada tabela contém, de onde vem cada dado, como ele foi gerado e para que serve. O [capítulo 9](#9-consultas-prontas) reúne 15 consultas prontas para análises de geoprocessamento e sensoriamento remoto. Os capítulos 13 a 16 tratam do acesso por Python, das oficinas com o modo eventos, da cobertura e das limitações de cada base e de como citar as fontes.
 
 ### 1.1 Como o acesso está organizado
 
@@ -772,7 +772,7 @@ Para UCs e entornos, use a tabela mapbiomas_clip, que já traz a área calculada
 
 #### Layout para relatório
 
-Em **Projeto &gt; Novo Layout de Impressão**, adicione o mapa, a legenda, a escala e o norte. Cite as fontes no rodapé do layout ([capítulo 13](#13-créditos-e-citação-das-fontes)). O passo a passo do layout está no [manual do QGIS, Layouts de impressão](https://docs.qgis.org/latest/pt_BR/docs/user_manual/print_composer/index.html).
+Em **Projeto &gt; Novo Layout de Impressão**, adicione o mapa, a legenda, a escala e o norte. Cite as fontes no rodapé do layout ([capítulo 16](#16-créditos-e-citação-das-fontes)). O passo a passo do layout está no [manual do QGIS, Layouts de impressão](https://docs.qgis.org/latest/pt_BR/docs/user_manual/print_composer/index.html).
 
 ### 3.14 Para aprender mais sobre o QGIS
 
@@ -1729,9 +1729,9 @@ LIMIT 20;
 ```
 
 
-## Estudos de caso: cinco UCs, notícias, artigos e dados
+## 10. Estudos de caso: cinco UCs, notícias, artigos e dados
 
-Este capítulo mostra **para que servem os dados na prática**. Em cada um dos cinco estudos de caso, um problema noticiado pela imprensa, pelo Ministério Público ou pela Justiça foi confrontado com as tabelas do projeto: área por classe do MapBiomas, PRODES, MapBiomas Alerta e FIRMS. Cada caso traz os números, um mapa de antes e depois (os anos foram escolhidos em torno de cada evento, e não sempre 1985 e 2025), as notícias e os artigos e trabalhos acadêmicos com **PDF gratuito** sobre a UC, com a explicação de como cada um se liga aos dados. Em seguida vêm [cinco sugestões de artigos](#cinco-sugestões-de-artigos-com-os-dados-do-projeto) e [propostas de pesquisa com IA](#pesquisa-com-aprendizado-de-máquina-e-ia-generativa).
+Este capítulo mostra **para que servem os dados na prática**. Em cada um dos cinco estudos de caso, um problema noticiado pela imprensa, pelo Ministério Público ou pela Justiça foi confrontado com as tabelas do projeto: área por classe do MapBiomas, PRODES, MapBiomas Alerta e FIRMS. Cada caso traz os números, um mapa de antes e depois (os anos foram escolhidos em torno de cada evento, e não sempre 1985 e 2025), as notícias e os artigos e trabalhos acadêmicos com **PDF gratuito** sobre a UC, com a explicação de como cada um se liga aos dados. Em seguida vêm [cinco sugestões de artigos](#11-cinco-sugestões-de-artigos-com-os-dados-do-projeto) e [propostas de pesquisa com IA](#12-pesquisa-com-aprendizado-de-máquina-e-ia-generativa).
 
 > ℹ️ **Leitura de 02/11/2026, com as 186 UCs cadastradas até essa data.** Todos os números podem ser refeitos com as consultas do [capítulo 9](#9-consultas-prontas), pelo QGIS ou pelo Excel.
 {.is-info}
@@ -1739,7 +1739,7 @@ Este capítulo mostra **para que servem os dados na prática**. Em cada um dos c
 > ⚠️ **Atenção:** os dados **descrevem** o que aconteceu. Eles não provam sozinhos a causa de uma mudança nem constatam uma infração. Alerta não é auto de infração, foco de calor não é área queimada e coincidência no tempo não é prova de efeito. Use os casos como ponto de partida para investigar, sempre com as fontes originais e com quem conhece o território.
 {.is-warning}
 
-### Por que o pipeline torna estes casos possíveis
+### 10.1 Por que o pipeline torna estes casos possíveis
 
 Sem o pipeline, cada caso exigiria baixar 41 mapas anuais do MapBiomas, a série do PRODES, a API do MapBiomas Alerta e os arquivos do FIRMS, reprojetar tudo, recortar cada fonte pela UC e por um entorno de 3 km desenhado à mão e só então começar a análise. Com os dados já preparados, os números de cada estudo de caso saem de uma consulta ao WFS ou ao banco, e os mapas de antes e depois saem de um pedido ao WMS. A tabela mostra qual capacidade do pipeline sustenta cada parte deste capítulo.
 
@@ -1753,7 +1753,7 @@ Sem o pipeline, cada caso exigiria baixar 41 mapas anuais do MapBiomas, a série
 | Views somente leitura (`reporting`), com tempo máximo por consulta e dicionário de dados | os agentes de IA das propostas 1 e 2, que consultam sem risco de alterar dados |
 | Cargas semanais orquestradas pelo Airflow e catálogo dos rasters com SHA-256 | relatórios disparados ao fim de cada carga (proposta 2), conjuntos de treino idênticos para quem reproduzir (propostas 3, 4 e 5) |
 
-### Estudo de caso 1. Parque Nacional das Araucárias: pinus no entorno e regularização pendente
+### 10.2 Estudo de caso 1. Parque Nacional das Araucárias: pinus no entorno e regularização pendente
 
 **O contexto.** O parque foi criado em outubro de 2005, com 12.841 ha em Passos Maia e Ponte Serrada, para proteger remanescentes da Floresta Ombrófila Mista. Em 2011, a ((o))eco relatou que a maior parte das propriedades dentro do parque era de **empresas de reflorestamento e grandes fazendas**, com 20 processos de indenização e nenhuma área indenizada até então. Enquanto não são indenizados, os proprietários podem manter suas atividades. Em 2016, o TRF4 determinou que a União concluísse a desapropriação de dois terrenos de empresas florestais dentro do parque.
 
@@ -1793,7 +1793,7 @@ Sem o pipeline, cada caso exigiria baixar 41 mapas anuais do MapBiomas, a série
 **Pesquisa que os dados permitem.** Medir, ano a ano, a conversão para silvicultura nas propriedades ainda não indenizadas, cruzando a malha fundiária do ICMBio com a tabela `mapbiomas_clip` e o raster pelo WCS. É um complemento quantitativo direto aos trabalhos históricos de Nodari e Brunetto.
 
 
-### Estudo de caso 2. Estação Ecológica da Mata Preta: soja até a borda e regularização cobrada na Justiça
+### 10.3 Estudo de caso 2. Estação Ecológica da Mata Preta: soja até a borda e regularização cobrada na Justiça
 
 **O contexto.** A ESEC da Mata Preta foi criada pelo mesmo decreto de 19 de outubro de 2005 que criou o PARNA das Araucárias, em Abelardo Luz, para proteger remanescentes da Floresta Ombrófila Mista. Em 29/10/2025, o MPF informou que a Justiça determinou a **regularização fundiária e a elaboração do plano de manejo** da unidade, vinte anos depois da criação. A ação resultou de inspeções feitas em 2023 na ESEC e no PARNA das Araucárias, que apontaram resistência de proprietários desde o processo de criação das duas unidades.
 
@@ -1829,7 +1829,7 @@ Sem o pipeline, cada caso exigiria baixar 41 mapas anuais do MapBiomas, a série
 **Pesquisa que os dados permitem.** Medir o **isolamento da ESEC** de 1985 a 2025 com métricas de paisagem (área de borda, distância entre fragmentos, conectividade) calculadas sobre o raster anual pelo WCS, e testar se a criação em 2005 mudou a tendência no entorno. É uma pergunta de ecologia da paisagem que só a série de 41 anos permite responder.
 
 
-### Estudo de caso 3. Parque Nacional de São Joaquim: incêndios nos campos de altitude
+### 10.4 Estudo de caso 3. Parque Nacional de São Joaquim: incêndios nos campos de altitude
 
 **O contexto.** Em julho de 2026, o parque fez pela primeira vez ações de manejo integrado do fogo. Segundo a chefia, citada pelo Brasil de Fato, **desde 2020 o parque é alvo de incêndios criminosos** que atingiram centenas de hectares de campos e florestas. Trabalhos da UDESC lembram que pouco mais de 25% da área do parque tem a regularização fundiária efetivada, e que nas áreas não indenizadas ainda há atividades agropecuárias com uso recorrente do fogo para renovar pastagens.
 
@@ -1870,7 +1870,7 @@ Sem o pipeline, cada caso exigiria baixar 41 mapas anuais do MapBiomas, a série
 **Pesquisa que os dados permitem.** Os trabalhos da UDESC mediram a área queimada em um único ano (2022) com imagens de alta resolução. Os dados do projeto oferecem o que falta para um artigo de séries temporais: 26 anos de focos (2000 a 2026) para identificar os anos atípicos, como 2020 e 2024, que merecem o mapeamento detalhado de cicatrizes, e 41 anos de uso e cobertura para relacionar o fogo à presença de pastagem e silvicultura nas áreas não indenizadas.
 
 
-### Estudo de caso 4. Parque Estadual da Serra do Tabuleiro: pinus invasor e o incêndio de 2019
+### 10.5 Estudo de caso 4. Parque Estadual da Serra do Tabuleiro: pinus invasor e o incêndio de 2019
 
 **O contexto.** Criado em 1975, o Tabuleiro é a maior UC de Santa Catarina, com cerca de 84 mil hectares. Em setembro de 2019, um incêndio criminoso consumiu **mais de 800 hectares** na Baixada do Maciambu, em Palhoça. Reportagens do ND+ de 2019 e 2020 mostram que o pinus, espécie exótica invasora, se espalha pelo parque, pode alterar o ecossistema e secar nascentes, e rebrotou depois do fogo. Entre 2017 e 2019, o projeto Viva Restinga eliminou 46.155 plantas exóticas em 200 ha da Baixada. A pesquisa histórica de Peres mostra que a região vive conflitos desde a criação do parque e que, em 2009, parte da Baixada do Maciambu foi recategorizada como APA.
 
@@ -1891,7 +1891,7 @@ Sem o pipeline, cada caso exigiria baixar 41 mapas anuais do MapBiomas, a série
 > ✅ **Corroboração:** as reportagens descrevem o pinus se espalhando dentro do parque, e o MapBiomas registra a classe Silvicultura dentro do limite passando de 307 ha (2005) para 1.302 ha (2018) e 1.850 ha (2025). Como um parque estadual não admite plantio comercial, esse crescimento é um forte indício de invasão e de plantios em áreas ainda não regularizadas, que os gestores precisam verificar em campo.
 {.is-check}
 
-> ⚠️ **Dois limites dos dados revelados por este caso:** (1) o MapBiomas não separa **plantio** de **invasão**: um pinhal invasor denso aparece como Silvicultura, e uma invasão esparsa no meio do campo ou da restinga pode nem aparecer. (2) Os focos publicados pelo projeto, que só incluem os de **confiança alta**, não registram o incêndio de setembro de 2019, nem no parque nem na APA do Entorno Costeiro. Para eventos assim, consulte também os focos de confiança nominal no próprio [FIRMS](https://firms.modaps.eosdis.nasa.gov/map/) e os mapas de cicatrizes. As duas lacunas viraram as propostas 4 e 5 da seção [Pesquisa com aprendizado de máquina e IA generativa](#pesquisa-com-aprendizado-de-máquina-e-ia-generativa).
+> ⚠️ **Dois limites dos dados revelados por este caso:** (1) o MapBiomas não separa **plantio** de **invasão**: um pinhal invasor denso aparece como Silvicultura, e uma invasão esparsa no meio do campo ou da restinga pode nem aparecer. (2) Os focos publicados pelo projeto, que só incluem os de **confiança alta**, não registram o incêndio de setembro de 2019, nem no parque nem na APA do Entorno Costeiro. Para eventos assim, consulte também os focos de confiança nominal no próprio [FIRMS](https://firms.modaps.eosdis.nasa.gov/map/) e os mapas de cicatrizes. As duas lacunas viraram as propostas 4 e 5 da seção [Pesquisa com aprendizado de máquina e IA generativa](#12-pesquisa-com-aprendizado-de-máquina-e-ia-generativa).
 {.is-warning}
 
 **Notícias.**
@@ -1908,7 +1908,7 @@ Sem o pipeline, cada caso exigiria baixar 41 mapas anuais do MapBiomas, a série
 
 **Pesquisa que os dados permitem.** Comparar, de 1985 a 2025, as áreas da Baixada do Maciambu que **saíram** do parque em 2009 com as que **ficaram** nele. Seria um teste quantitativo do efeito da recategorização, discutida por Peres, sobre restinga, silvicultura e área urbana.
 
-### Estudo de caso 5. APA da Baleia Franca: ocupação urbana na faixa costeira
+### 10.6 Estudo de caso 5. APA da Baleia Franca: ocupação urbana na faixa costeira
 
 **O contexto.** A APA da Baleia Franca foi criada em setembro de 2000 e cobre cerca de 130 km do litoral sul catarinense, de Florianópolis a Balneário Rincão. Em março de 2025, uma perícia do MPF concluiu que um loteamento em Laguna está integralmente sobre restinga, em área de preservação permanente, e parcialmente dentro da APA, com supressão de vegetação primária da Mata Atlântica. Em julho de 2026, a imprensa noticiou um projeto na Câmara que ameaça a faixa terrestre da APA, em meio ao debate sobre APPs ocupadas de forma irregular.
 
@@ -1950,11 +1950,11 @@ Dentro da APA, o PRODES registra 1.622 ha de desmatamento de 2004 a 2023 (470 ha
 
 ---
 
-## Cinco sugestões de artigos com os dados do projeto
+## 11. Cinco sugestões de artigos com os dados do projeto
 
 Os estudos de caso olham para uma UC de cada vez. As sugestões a seguir usam **todas as UCs** e propõem perguntas de pesquisa que dariam artigos ou trabalhos de conclusão, cada uma com os números atuais, os cuidados de interpretação e o caminho para reproduzir.
 
-### Sugestão 1. A pressão de desmatamento está dentro ou no entorno das UCs?
+### 11.1 Sugestão 1. A pressão de desmatamento está dentro ou no entorno das UCs?
 
 **Por que importa.** Uma UC pode parecer conservada por dentro e, ao mesmo tempo, ficar ilhada por um entorno que perde vegetação. Saber onde o desmatamento se concentra orienta a fiscalização e o diálogo com os vizinhos.
 
@@ -1971,7 +1971,7 @@ Os estudos de caso olham para uma UC de cada vez. As sugestões a seguir usam **
 
 **Como reproduzir.** Consultas [9.2](#92-top-10-ucs-com-maior-área-desmatada-prodes-separando-uc-e-entorno) e [9.13](#913-série-anual-de-desmatamento-prodes-dentro-da-uc-x-entorno), ou a receita do Excel "Desmatamento PRODES dentro da UC e no entorno" ([seção 4.5](#45-receitas-de-análise-no-excel)).
 
-### Sugestão 2. Quando o fogo acontece: o calendário das queimadas
+### 11.2 Sugestão 2. Quando o fogo acontece: o calendário das queimadas
 
 **Por que importa.** Saber **em que meses** e **onde** os focos se concentram permite planejar brigadas, campanhas e o manejo integrado do fogo antes da temporada crítica.
 
@@ -1991,7 +1991,7 @@ Os estudos de caso olham para uma UC de cada vez. As sugestões a seguir usam **
 > 💡 **No Power BI, sem login:** em **Obter dados > Web**, cole a URL de focos da [seção 4.2](#42-uma-url-pronta-para-cada-base) com as colunas `nr_ano, nr_mes, instrument, detection_id`. Monte um **gráfico de colunas empilhadas** com `nr_mes` no Eixo X, `instrument` na Legenda e **Contagem (Distinta) de detection_id** em Valores. Como essas colunas são inteiras ou texto, não há o problema do separador decimal da [seção 5.4](#54-alternativa-sem-login-wfs-em-csv).
 {.is-success}
 
-### Sugestão 3. Silvicultura substituindo vegetação nativa no entorno
+### 11.3 Sugestão 3. Silvicultura substituindo vegetação nativa no entorno
 
 **Por que importa.** Em Santa Catarina, a troca de floresta e campo nativos por plantios de pinus e eucalipto é uma das principais pressões sobre a Floresta com Araucárias e os campos de altitude. O MapBiomas permite acompanhar essa troca ano a ano, de 1985 a 2025.
 
@@ -2008,7 +2008,7 @@ Os estudos de caso olham para uma UC de cada vez. As sugestões a seguir usam **
 
 **Como reproduzir.** Consultas [9.7](#97-ganho-ou-perda-de-vegetação-nativa-entre-o-primeiro-e-o-último-ano-por-uc), [9.8](#98-pressão-agropecuária-no-entorno-za-ou-buffer-de-abrangência-pastagem-agricultura-silvicultura-e-mosaico) e [9.9](#99-avanço-da-silvicultura-plantios-de-pinus-e-eucalipto-dentro-e-no-entorno-das-ucs), ou o gráfico dinâmico da [seção 4.2](#42-uma-url-pronta-para-cada-base).
 
-### Sugestão 4. Alertas recentes para relatórios técnicos e fiscalização
+### 11.4 Sugestão 4. Alertas recentes para relatórios técnicos e fiscalização
 
 **Por que importa.** O MapBiomas Alerta publica desmatamentos **validados por analistas**, com imagens de antes e depois. Para o órgão gestor de uma UC, a lista de alertas recentes no seu entorno é um insumo direto para vistorias e relatórios.
 
@@ -2025,7 +2025,7 @@ Os estudos de caso olham para uma UC de cada vez. As sugestões a seguir usam **
 
 **Como reproduzir.** Consultas [9.1](#91-top-10-ucs-com-mais-alertas-mapbiomas-dentro-da-uc-e-no-entorno) e [9.14](#914-alertas-mapbiomas-por-ano-de-detecção-e-sistema-de-origem-com-área-média), ou a URL de alertas da [seção 4.2](#42-uma-url-pronta-para-cada-base) com `&sortBy=dt_deteccao%20DESC`.
 
-### Sugestão 5. As UCs estão conservando a vegetação?
+### 11.5 Sugestão 5. As UCs estão conservando a vegetação?
 
 **Por que importa.** É a pergunta central sobre áreas protegidas: o território dentro da UC está mais conservado do que o de fora, e a diferença aumenta com o tempo?
 
@@ -2040,12 +2040,12 @@ Os estudos de caso olham para uma UC de cada vez. As sugestões a seguir usam **
 
 **Proposta de artigo.** *"Efetividade das UCs de Santa Catarina na manutenção da vegetação nativa (1985 a 2025)"*: um estudo com pareamento estatístico entre UCs e áreas semelhantes, separado por grupo, esfera e data de criação. O artigo de Nodari (2011), citado nos estudos de caso 1 e 2, discute exatamente essa pergunta do ponto de vista histórico.
 
-**Como reproduzir.** Consulta [9.7](#97-ganho-ou-perda-de-vegetação-nativa-entre-o-primeiro-e-o-último-ano-por-uc) e o exemplo em Python da [seção 10.1](#101-pelo-wfs-sem-login), que já calcula a floresta por UC e ano.
+**Como reproduzir.** Consulta [9.7](#97-ganho-ou-perda-de-vegetação-nativa-entre-o-primeiro-e-o-último-ano-por-uc) e o exemplo em Python da [seção 13.1](#131-pelo-wfs-sem-login), que já calcula a floresta por UC e ano.
 
 
 ---
 
-## Pesquisa com aprendizado de máquina e IA generativa
+## 12. Pesquisa com aprendizado de máquina e IA generativa
 
 As propostas a seguir só se tornam viáveis porque o pipeline já resolveu o trabalho mais caro de qualquer projeto de IA geoespacial: **dados limpos, alinhados e com proveniência**. O projeto oferece:
 
@@ -2058,7 +2058,7 @@ As propostas a seguir só se tornam viáveis porque o pipeline já resolveu o tr
 > 📘 **Conceito:** **aprendizado de máquina (ML)** são modelos que aprendem padrões a partir de exemplos. **Aprendizado profundo (DL)** é o ML com redes neurais de muitas camadas, bom para imagens e séries temporais. **IA generativa** são modelos de linguagem (LLMs) que leem e escrevem texto. Um **agente de IA** é um LLM que, em vez de só responder, planeja passos e usa ferramentas (consultas SQL, serviços de mapa, scripts) para chegar a um resultado verificável.
 {.is-concept}
 
-### Proposta 1. Agente que corrobora notícias ambientais com dados abertos
+### 12.1 Proposta 1. Agente que corrobora notícias ambientais com dados abertos
 
 **A ideia.** Automatizar o que foi feito à mão nos estudos de caso deste capítulo. O agente recebe uma notícia, uma ação do Ministério Público ou um laudo e segue estes passos:
 
@@ -2074,7 +2074,7 @@ As propostas a seguir só se tornam viáveis porque o pipeline já resolveu o tr
 
 **Referências.** Benchmarks recentes avaliam agentes LLM em tarefas geoespaciais ambientais com ferramentas: [GeoNatureAgent Benchmark (arXiv 2606.12821)](https://arxiv.org/abs/2606.12821), [GeoNatureAgent: framework de avaliação pré-produção (arXiv 2610.09112)](https://arxiv.org/abs/2610.09112) e [GeoBenchX (arXiv 2503.18129)](https://arxiv.org/abs/2503.18129).
 
-### Proposta 2. Agente de relatórios técnicos por UC, com cada número rastreável
+### 12.2 Proposta 2. Agente de relatórios técnicos por UC, com cada número rastreável
 
 **A ideia.** Um sistema multiagente que produz, a cada trimestre, um relatório técnico por UC para o órgão gestor. Um agente **planejador** define as seções (alertas recentes, focos da temporada, mudança de uso desde a última coleta). Um agente **de SQL** escreve consultas PostGIS sobre as views. Um agente **cartógrafo** gera os mapas pelo WMS. Um agente **revisor** confere se cada número do texto aparece no resultado de uma consulta e se as ressalvas obrigatórias estão presentes (alerta não é infração, foco não é área queimada).
 
@@ -2087,7 +2087,7 @@ As propostas a seguir só se tornam viáveis porque o pipeline já resolveu o tr
 
 **Referências.** [From Questions to Queries: Multi-Agent Framework for Spatial Text-to-SQL em PostGIS (arXiv 2510.21045)](https://arxiv.org/abs/2510.21045), [GISclaw (arXiv 2603.26845)](https://arxiv.org/abs/2603.26845) e [GeoJSON Agents (arXiv 2509.08863)](https://arxiv.org/abs/2509.08863). Há uma lista curada em [awesome-agentic-AI-for-Geospatial-Data](https://github.com/mohammadhashemii/awesome-agentic-AI-for-Geospatial-Data).
 
-### Proposta 3. Previsão do risco de conversão no entorno das UCs com redes espaço-temporais
+### 12.3 Proposta 3. Previsão do risco de conversão no entorno das UCs com redes espaço-temporais
 
 **A ideia.** Treinar um modelo de deep learning espaço-temporal (ConvLSTM ou um transformer de séries temporais de imagens) que, a partir da sequência anual de mapas do MapBiomas, preveja **a probabilidade de cada pixel do entorno deixar de ser vegetação nativa** nos próximos um a três anos, com atenção especial à conversão para silvicultura e soja que aparece nos estudos de caso 1, 2 e 4. As variáveis de entrada seriam:
 - o histórico de classes do pixel;
@@ -2101,7 +2101,7 @@ As propostas a seguir só se tornam viáveis porque o pipeline já resolveu o tr
 
 **Referência.** PIŠL, J.; SUMBUL, G.; LENCZNER, G.; WEGNER, J. D. [Towards high-resolution forecasting of tropical deforestation with deep learning](https://iopscience.iop.org/article/10.1088/1748-9326/aebda8). *Environmental Research Letters* (acesso aberto). O estudo usa ConvLSTM com mapas do MapBiomas e áreas protegidas na Amazônia e chega a F1 de 0,47 na previsão de um ano. A proposta aqui adapta a abordagem à Mata Atlântica e ao entorno das UCs.
 
-### Proposta 4. Mapa anual de cicatrizes de queimada nos campos de altitude com modelos de fundação
+### 12.4 Proposta 4. Mapa anual de cicatrizes de queimada nos campos de altitude com modelos de fundação
 
 **A ideia.** O estudo de caso 3 mostrou o principal ponto cego dos focos de calor: nos campos de altitude, eles registram menos de 1% das queimadas reais. A proposta é ajustar um **modelo de fundação geoespacial**, o Prithvi-EO-2.0 da IBM e da NASA, que já tem versão treinada para cicatrizes de queimada, a imagens Harmonized Landsat Sentinel (HLS) do planalto catarinense. Como rótulos de referência entram as cicatrizes mapeadas pela UDESC em 2022, e o resultado é uma série anual de **área queimada** para o PARNA de São Joaquim, o Tabuleiro e as demais UCs com campos naturais.
 
@@ -2115,7 +2115,7 @@ As propostas a seguir só se tornam viáveis porque o pipeline já resolveu o tr
 
 **Referências.** [Prithvi-EO-2.0-300M-BurnScars (Hugging Face)](https://huggingface.co/ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars) e o artigo de origem dos modelos Prithvi, [Foundation Models for Generalist Geospatial Artificial Intelligence (arXiv 2310.18660)](https://arxiv.org/abs/2310.18660). Os resumos da UDESC citados no estudo de caso 3 fornecem os rótulos regionais.
 
-### Proposta 5. Separar plantio de invasão de pinus com embeddings de satélite
+### 12.5 Proposta 5. Separar plantio de invasão de pinus com embeddings de satélite
 
 **A ideia.** Os estudos de caso 1, 3 e 4 esbarraram no mesmo limite: o MapBiomas chama de Silvicultura tanto o plantio comercial quanto o pinhal invasor. A proposta usa **embeddings de observação da Terra**, vetores que resumem a aparência e a textura de cada trecho de imagem, gerados por um modelo de fundação como o Clay, para treinar um classificador leve. Ele separaria três situações dentro da classe Silvicultura e nas bordas dos campos e restingas: **plantio regular**, **invasão densa** e **invasão esparsa em campo nativo**.
 
@@ -2133,14 +2133,14 @@ As propostas a seguir só se tornam viáveis porque o pipeline já resolveu o tr
 
 ---
 
-## 10. Acesso por Python
+## 13. Acesso por Python
 
 > 📘 **Conceito:** **pandas** é a biblioteca do Python para tabelas (como um Excel programável) e **geopandas** acrescenta a geometria, para trabalhar com mapas. A vantagem sobre o Excel é a reprodutibilidade: o mesmo script refaz a análise inteira quando os dados forem atualizados. Comece pelos guias oficiais do [pandas](https://pandas.pydata.org/docs/getting_started/index.html) e do [geopandas](https://geopandas.org/en/stable/getting_started/introduction.html).
 {.is-concept}
 
 Analistas que usam Python podem ler as mesmas bases sem o Excel. Instale geopandas (que traz pandas) com `pip install geopandas` ou pelo conda.
 
-### 10.1 Pelo WFS, sem login
+### 13.1 Pelo WFS, sem login
 
 ```python
 import geopandas as gpd
@@ -2183,7 +2183,7 @@ print(floresta.round(1).head())
 ```
 
 
-### 10.2 Pelo banco, com login
+### 13.2 Pelo banco, com login
 
 Com o login do laboratório ou do evento, instale também sqlalchemy e psycopg2-binary. Guarde o usuário, a senha e o endereço do servidor em variáveis de ambiente, nunca no código:
 
@@ -2212,7 +2212,7 @@ focos = pd.read_sql(
 
 As 15 consultas do [capítulo 9](#9-consultas-prontas) funcionam em pd.read_sql; as que trazem geom funcionam em gpd.read_postgis.
 
-## 11. Oficinas: modo eventos
+## 14. Oficinas: modo eventos
 
 Em oficinas com muitas pessoas, o administrador ativa o **modo eventos** no painel (aba Modo eventos, só para administradores). O servidor de mapas ganha mais memória e é criado um login de banco temporário para a turma. Os endereços dos serviços e do banco não mudam.
 
@@ -2233,7 +2233,7 @@ Roteiro sugerido para a turma: QGIS com WMS ou WMTS e WFS ([capítulo 3](#3-qgis
 {.is-success}
 
 
-## 12. Cobertura e limitações dos dados
+## 15. Cobertura e limitações dos dados
 
 Situação das bases na leitura de 02/11/2026. Os números crescem com as cargas semanais e com novas UCs.
 
@@ -2255,7 +2255,7 @@ Situação das bases na leitura de 02/11/2026. Os números crescem com as cargas
 - **MapBiomas Uso e Cobertura:** Coleção 11, de 1985 a 2025, com pixels de 30 m. Classes marcadas como beta devem ser lidas com cautela.
 - **Cadastro:** uma UC nova cadastrada pelo painel recebe automaticamente o histórico completo de todos os temas; enquanto o processamento não termina, os números dela ficam incompletos.
 
-## 13. Créditos e citação das fontes
+## 16. Créditos e citação das fontes
 
 Os dados publicados são derivados de fontes oficiais. Ao usá-los em trabalhos, relatórios e mapas, cite a fonte original e o projeto, e consulte os termos de uso de cada fonte:
 
@@ -2272,7 +2272,7 @@ Os dados publicados são derivados de fontes oficiais. Ao usá-los em trabalhos,
 
 Sugestão de citação do projeto: **Áreas Protegidas SC. Dados de monitoramento de Unidades de Conservação de Santa Catarina. Disponível em: https://areasprotegidas-sc.com. Acesso em: &lt;data&gt;.** Informe a data da consulta, porque os dados são atualizados periodicamente.
 
-## 14. Siglas
+## 17. Siglas
 
 | **Sigla** | **Significado** |
 |----|----|
