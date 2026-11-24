@@ -19,7 +19,7 @@ from urllib.parse import quote
 
 LOGGER = logging.getLogger(__name__)
 TRACEBACK_LINES = 40
-RUNBOOK_URL = "https://github.com/diisilva/pipeline-protected-areas-sc/blob/main/docs/RUNBOOK.md"
+RUNBOOK_URL = "https://github.com/diegof-d2fs/pipeline-protected-areas-sc/blob/main/docs/RUNBOOK.md"
 
 
 def notify_task_failure(context: dict[str, Any]) -> None:
