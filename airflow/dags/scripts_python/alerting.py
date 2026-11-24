@@ -101,7 +101,7 @@ def build_failure_message(context: dict[str, Any], env: os._Environ | dict[str, 
         ),
         "",
         "Erro:",
-        f"  {type(exception).__name__ if exception else 'desconhecido'}: {exception}",
+        f"  {_describe_exception(exception)}",
         "",
         "Contexto da carga:",
         *_load_context(conf),
@@ -144,8 +144,20 @@ def _load_context(conf: dict[str, Any]) -> list[str]:
     return shown
 
 
-def _traceback_tail(exception: BaseException | None) -> list[str]:
+def _describe_exception(exception: BaseException | str | None) -> str:
+    if exception is None or exception == "":
+        return "desconhecido"
+    if isinstance(exception, BaseException):
+        return f"{type(exception).__name__}: {exception}"
+    return str(exception)
+
+
+def _traceback_tail(exception: BaseException | str | None) -> list[str]:
     if exception is None:
         return ["  (sem exceção registrada)"]
+    if not isinstance(exception, BaseException):
+        # Airflow hands the callback a plain string when the task ends in SystemExit
+        # ("Task failed due to SystemExit(...)"); there is no traceback object to format.
+        return ["  (traceback indisponível; veja o log da tarefa no CloudWatch)", f"  {exception}"]
     formatted = "".join(traceback.format_exception(type(exception), exception, exception.__traceback__))
     return ["  " + line for line in formatted.rstrip().splitlines()[-TRACEBACK_LINES:]]

@@ -90,3 +90,37 @@ def test_cluster_policy_attaches_alert_to_every_task() -> None:
         for dag in bag.dags.values()
         for task in dag.tasks
     )
+
+
+def test_string_exception_from_systemexit_still_builds_the_message() -> None:
+    """Regression of Nov/2026: Airflow passes a str when a task ends in SystemExit."""
+    context = _context()
+    context["exception"] = "Task failed due to SystemExit(COG publicado não encontrado no Gold: /x.tif)"
+
+    subject, body = build_failure_message(context, {})
+
+    assert subject == "[pa-sc] Falha: DAG_UCS.load_postgres"
+    assert "Task failed due to SystemExit(COG publicado não encontrado no Gold: /x.tif)" in body
+    assert "str:" not in body
+    assert "traceback indisponível" in body
+
+
+def test_string_exception_is_published(monkeypatch) -> None:
+    published: list[dict] = []
+
+    class FakeSns:
+        def publish(self, **kwargs):
+            published.append(kwargs)
+
+    import boto3
+
+    monkeypatch.setenv("ALERT_TOPIC_ARN", "arn:aws:sns:us-east-1:1:pa-sc-alertas")
+    monkeypatch.setattr(boto3, "client", lambda *_args, **_kwargs: FakeSns())
+    context = _context()
+    context["exception"] = "Task failed due to SystemExit(falha)"
+
+    notify_task_failure(context)
+
+    assert len(published) == 1
+    assert published[0]["Subject"] == "[pa-sc] Falha: DAG_UCS.load_postgres"
+    assert "SystemExit(falha)" in published[0]["Message"]

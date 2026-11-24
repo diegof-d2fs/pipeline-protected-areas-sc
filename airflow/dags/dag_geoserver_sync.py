@@ -5,7 +5,7 @@ Abrangência, PRODES, MapBiomas Alerta, FIRMS) e rasters MapBiomas publicados di
 execução; eventos simultâneos se consolidam numa só.
 
 1. `push_medallion`: envia ao S3 o que mudou na Medallion local (sem efeito fora da AWS).
-2. `sync_geoserver`: na AWS, o nó de serviço baixa do S3 o COG Gold (SSM Run Command); depois a
+2. `sync_geoserver`: restaura do S3 os COGs ausentes no Gold local; na AWS, o nó de serviço baixa do S3 o COG Gold (SSM Run Command); depois a
    publicação de `geoserver/bootstrap_layers.py`, idempotente, registra anos raster novos,
    remove anos despublicados, recalcula extensões e descarta caches de leitura e de tiles.
 """
@@ -62,7 +62,20 @@ def _refresh_serving_gold() -> None:
     )
 
 
+def _restore_local_gold_rasters() -> int:
+    """Bring back from S3 any published COG missing from the local Gold (incremental pull).
+
+    The checksum check in `publish_all` reads the local copy; S3 is the source of truth, so a
+    local cache that lost files (disk replaced, cleanup bug of Nov/2026) must not block publishing.
+    """
+    store = MedallionStore.from_config(PipelineConfig.from_env())
+    if store is None:
+        return 0
+    return store.pull(("gold",), key_prefix="mapbiomas_lulc/")["gold"]
+
+
 def _sync_geoserver() -> list[str]:
+    _restore_local_gold_rasters()
     _refresh_serving_gold()
     if str(GEOSERVER_DIR) not in sys.path:
         sys.path.insert(0, str(GEOSERVER_DIR))

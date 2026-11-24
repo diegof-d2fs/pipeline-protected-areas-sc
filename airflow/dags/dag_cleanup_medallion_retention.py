@@ -18,39 +18,55 @@ RETENTION_DAYS = 30
 TEMPORAL_FORMATS = ("%Y-%m-%d-%H-%M-%S", "%Y-%m-%d-%S-%M-%H")
 
 
-def _parse_batch_datetime(batch_dir: Path) -> datetime:
+def _parse_batch_datetime(batch_dir: Path) -> datetime | None:
+    """Batch timestamp from the directory name, or None when the name is not a batch.
+
+    Only dated batch directories are disposable. Partitioned or permanent directories
+    (`collection=11`, `product=VIIRS_NOAA20_NRT`, `statistics`, ...) are never judged by mtime:
+    that fallback deleted the published MapBiomas COGs and the FIRMS partitions in Nov/2026.
+    """
     for fmt in TEMPORAL_FORMATS:
         try:
             return datetime.strptime(batch_dir.name, fmt).replace(tzinfo=timezone.utc)
         except ValueError:
             continue
-    return datetime.fromtimestamp(batch_dir.stat().st_mtime, tz=timezone.utc)
+    return None
 
 
 def _cleanup_layer(layer_root: Path, cutoff: datetime) -> dict[str, int]:
     deleted_dirs = 0
     kept_dirs = 0
+    skipped_dirs = 0
 
     if not layer_root.exists() or not layer_root.is_dir():
-        return {"deleted_dirs": deleted_dirs, "kept_dirs": kept_dirs}
+        return {"deleted_dirs": deleted_dirs, "kept_dirs": kept_dirs, "skipped_dirs": skipped_dirs}
 
-    for domain_dir in layer_root.iterdir():
+    for domain_dir in sorted(layer_root.iterdir()):
         if not domain_dir.is_dir():
             continue
 
-        for batch_dir in domain_dir.iterdir():
-            if not batch_dir.is_dir():
+        batches: list[tuple[datetime, Path]] = []
+        for child in domain_dir.iterdir():
+            if not child.is_dir():
                 continue
+            batch_dt = _parse_batch_datetime(child)
+            if batch_dt is None:
+                skipped_dirs += 1
+                continue
+            batches.append((batch_dt, child))
 
-            batch_dt = _parse_batch_datetime(batch_dir)
-            if batch_dt < cutoff:
+        # The newest batch is what the next run and GeoServer read: never delete it.
+        batches.sort()
+        for index, (batch_dt, batch_dir) in enumerate(batches):
+            is_newest = index == len(batches) - 1
+            if batch_dt < cutoff and not is_newest:
                 shutil.rmtree(batch_dir)
                 deleted_dirs += 1
                 LOGGER.info("Deleted old batch directory: %s", batch_dir)
             else:
                 kept_dirs += 1
 
-    return {"deleted_dirs": deleted_dirs, "kept_dirs": kept_dirs}
+    return {"deleted_dirs": deleted_dirs, "kept_dirs": kept_dirs, "skipped_dirs": skipped_dirs}
 
 
 def cleanup_medallion_old_batches() -> dict[str, int]:
@@ -71,6 +87,8 @@ def cleanup_medallion_old_batches() -> dict[str, int]:
         "silver_kept_dirs": silver_stats["kept_dirs"],
         "gold_deleted_dirs": gold_stats["deleted_dirs"],
         "gold_kept_dirs": gold_stats["kept_dirs"],
+        "silver_skipped_non_batch_dirs": silver_stats["skipped_dirs"],
+        "gold_skipped_non_batch_dirs": gold_stats["skipped_dirs"],
     }
 
     LOGGER.info("Medallion retention cleanup finished: %s", result)
