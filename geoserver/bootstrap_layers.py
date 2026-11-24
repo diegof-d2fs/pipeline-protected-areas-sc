@@ -506,14 +506,64 @@ def harden_services(geoserver: GeoServer) -> None:
         geoserver.request("PUT", "/rest/settings.json", settings)
 
 
-def publish_all(gold_root: Path) -> list[str]:
-    """Sincroniza o GeoServer com `reporting` e o Gold; devolve as camadas publicadas."""
+def geoserver_from_env() -> GeoServer:
     port = os.environ.get("GEOSERVER_PORT", "8600")
-    geoserver = GeoServer(
+    return GeoServer(
         os.environ.get("GEOSERVER_URL", f"http://localhost:{port}/geoserver"),
         os.environ.get("GEOSERVER_ADMIN_USER", "admin"),
         required_env("GEOSERVER_ADMIN_PASSWORD"),
     )
+
+
+def raster_fingerprint(assets: list[dict]) -> str:
+    """SHA-256 of what defines the published rasters: year, scope, file and its checksum."""
+    keys = ("reference_year", "coverage_scope", "storage_key", "checksum_sha256")
+    rows = sorted(json.dumps([asset.get(key) for key in keys], default=str) for asset in assets)
+    return hashlib.sha256("\n".join(rows).encode()).hexdigest()
+
+
+def raster_store_names(geoserver: GeoServer) -> set[str]:
+    _, payload = geoserver.request("GET", f"/rest/workspaces/{WORKSPACE}/coveragestores.json")
+    stores = (json.loads(payload).get("coverageStores") or {}).get("coverageStore") or []
+    return {store["name"] for store in stores if store["name"].startswith("mapbiomas_uso_cobertura_")}
+
+
+@dataclass(frozen=True)
+class RasterPlan:
+    publish: bool
+    fingerprint: str | None
+    reason: str
+
+
+def plan_rasters(geoserver: GeoServer, known_fingerprint: str | None) -> RasterPlan:
+    """Decide whether the yearly MapBiomas rasters need the full publication step.
+
+    They change about once a year; the weekly loads (FIRMS, MapBiomas Alerta) only touch vector
+    layers. Rasters are republished when the published assets differ from the last successful
+    sync, when GeoServer lacks one of their stores, or when nothing is known yet.
+    """
+    try:
+        assets = published_raster_assets(geoserver)
+    except Exception as error:  # workspace or asset layer not yet published: full sync builds it
+        return RasterPlan(True, None, f"assets ilegíveis ({error}); publicação completa")
+    fingerprint = raster_fingerprint(assets)
+    if known_fingerprint is None:
+        return RasterPlan(True, fingerprint, "sem registro do último sync raster")
+    if fingerprint != known_fingerprint:
+        return RasterPlan(True, fingerprint, "assets raster mudaram desde o último sync")
+    expected = {f"mapbiomas_uso_cobertura_{asset['reference_year']}" for asset in assets}
+    if raster_store_names(geoserver) != expected:
+        return RasterPlan(True, fingerprint, "stores raster do GeoServer divergem dos assets")
+    return RasterPlan(False, fingerprint, "rasters sem mudança; etapa raster pulada")
+
+
+def publish_all(gold_root: Path, *, include_rasters: bool = True) -> list[str]:
+    """Sincroniza o GeoServer com `reporting` e o Gold; devolve as camadas atualizadas.
+
+    Com `include_rasters=False` (rasters já em dia, ver `plan_rasters`) só as camadas vetoriais
+    são republicadas e só o cache delas é descartado.
+    """
+    geoserver = geoserver_from_env()
     db = {
         "host": os.environ.get("GEOSERVER_DB_HOST", "protected-areas-sc-db-main"),
         "ssl_mode": os.environ.get("GEOSERVER_DB_SSL_MODE", "DISABLE"),
@@ -527,7 +577,7 @@ def publish_all(gold_root: Path) -> list[str]:
         print(f"workspace {WORKSPACE}: criado")
     harden_services(geoserver)
     publish_vector_layers(geoserver, db)
-    rasters = publish_raster_layers(geoserver, gold_root)
+    rasters = publish_raster_layers(geoserver, gold_root) if include_rasters else []
     layers = [layer.name for layer in VECTOR_LAYERS] + rasters
     refresh_caches(geoserver, layers)
     return layers

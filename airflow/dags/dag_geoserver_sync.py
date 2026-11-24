@@ -5,9 +5,13 @@ Abrangência, PRODES, MapBiomas Alerta, FIRMS) e rasters MapBiomas publicados di
 execução; eventos simultâneos se consolidam numa só.
 
 1. `push_medallion`: envia ao S3 o que mudou na Medallion local (sem efeito fora da AWS).
-2. `sync_geoserver`: restaura do S3 os COGs ausentes no Gold local; na AWS, o nó de serviço baixa do S3 o COG Gold (SSM Run Command); depois a
-   publicação de `geoserver/bootstrap_layers.py`, idempotente, registra anos raster novos,
-   remove anos despublicados, recalcula extensões e descarta caches de leitura e de tiles.
+2. `sync_geoserver`: republica as camadas vetoriais (`geoserver/bootstrap_layers.py`,
+   idempotente) e descarta seus caches. Os rasters MapBiomas, que mudam cerca de uma vez por ano,
+   só entram quando os assets publicados mudaram desde o último sync raster bem-sucedido (impressão
+   digital na Variable `geoserver_raster_fingerprint`), quando falta um store no GeoServer ou com
+   `{"force_raster": true}` no disparo manual. Nesse caso: restaura do S3 os COGs ausentes no Gold
+   local, o nó de serviço baixa o Gold raster (SSM Run Command), os checksums são conferidos, anos
+   novos são registrados e anos despublicados removidos.
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ GEOSERVER_DIR = Path("/opt/airflow/geoserver")
 GOLD_ROOT = Path("/opt/airflow/data/gold")
 # Diretório montado (somente leitura) no container do GeoServer, no nó de serviço.
 SERVING_GOLD_DIR = "/srv/pa-sc/gold"
+RASTER_FINGERPRINT_VARIABLE = "geoserver_raster_fingerprint"
 
 
 def _push_medallion() -> dict[str, int]:
@@ -74,13 +79,29 @@ def _restore_local_gold_rasters() -> int:
     return store.pull(("gold",), key_prefix="mapbiomas_lulc/")["gold"]
 
 
-def _sync_geoserver() -> list[str]:
-    _restore_local_gold_rasters()
-    _refresh_serving_gold()
+def _publisher():
     if str(GEOSERVER_DIR) not in sys.path:
         sys.path.insert(0, str(GEOSERVER_DIR))
-    bootstrap_layers = importlib.import_module("bootstrap_layers")
-    return bootstrap_layers.publish_all(GOLD_ROOT)
+    return importlib.import_module("bootstrap_layers")
+
+
+def _sync_geoserver(**context) -> list[str]:
+    from airflow.models import Variable
+
+    bootstrap_layers = _publisher()
+    dag_run = context.get("dag_run")
+    force = bool((getattr(dag_run, "conf", None) or {}).get("force_raster"))
+    known = None if force else Variable.get(RASTER_FINGERPRINT_VARIABLE, default_var=None)
+    plan = bootstrap_layers.plan_rasters(bootstrap_layers.geoserver_from_env(), known)
+    print(f"rasters: {'publicação forçada' if force else plan.reason}")
+
+    if plan.publish:
+        _restore_local_gold_rasters()
+        _refresh_serving_gold()
+    layers = bootstrap_layers.publish_all(GOLD_ROOT, include_rasters=plan.publish)
+    if plan.publish and plan.fingerprint:
+        Variable.set(RASTER_FINGERPRINT_VARIABLE, plan.fingerprint)
+    return layers
 
 
 with DAG(
